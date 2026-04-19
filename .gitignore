@@ -1,0 +1,21 @@
+.DS_Store
+.env
+.env.*.local
+
+node_modules
+.npm-cache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+.next
+out
+
+# Expo
+.expo
+dist
+web-build
+
+# Prisma
+apps/web/prisma/dev.db

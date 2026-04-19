@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum BookingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String?   @unique
+  passwordHash   String?
+  emailVerified  DateTime?
+  role           Role      @default(USER)
+
+  accounts Account[]
+  sessions Session[]
+
+  requestedBookings BookingRequest[] @relation("RequestedBy")
+  decidedBookings   BookingRequest[] @relation("DecidedBy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Vehicle {
+  id          String   @id @default(cuid())
+  name        String
+  plateNo     String?
+  active      Boolean  @default(true)
+
+  bookings BookingRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ControlCounter {
+  // UTC midnight representing the Manila month bucket (YYYY-MM).
+  controlDate DateTime @id
+  lastSeq     Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+model BookingRequest {
+  id            String        @id @default(cuid())
+
+  // Control number: YYYY-MM-#### (Manila filing month + monthly sequence)
+  controlNo     String        @unique
+  controlDate   DateTime
+  monthlySeq    Int
+
+  vehicleId     String
+  vehicle       Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+
+  date          DateTime
+  /// Manila trip start wall time HH:mm (matches booking dropdown)
+  startTime     String
+
+  destination   String
+  purpose       String
+  timeText      String?
+  requestorName String
+
+  status        BookingStatus @default(PENDING)
+  adminNotes    String?
+
+  requestedById String?
+  requestedBy   User?         @relation("RequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+
+  decidedById   String?
+  decidedBy     User?         @relation("DecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt     DateTime?
+
+  passengers    Passenger[]
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([controlDate, monthlySeq])
+  @@index([vehicleId, date])
+  @@index([vehicleId, date, startTime])
+  @@index([status])
+}
+
+model Passenger {
+  id        String         @id @default(cuid())
+  requestId String
+  fullName  String
+
+  request BookingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+}
+

@@ -1,0 +1,19 @@
+{
+  "name": "svr-booking",
+  "private": true,
+  "packageManager": "npm@11.12.1",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm -w apps/web run dev",
+    "dev:mobile": "npm -w apps/mobile run start",
+    "lint": "cd apps/web && npm run lint",
+    "typecheck": "cd packages/shared && npm run typecheck && cd ../../apps/web && npm run typecheck && cd ../mobile && npm run typecheck",
+    "build:web": "npm -w apps/web run build"
+  }
+}
