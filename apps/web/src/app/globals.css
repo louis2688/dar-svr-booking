@@ -1,8 +1,29 @@
 @import "tailwindcss";
 
+/* ============================================================
+   DAR · SVR Booking — design system layer
+   Sleek institutional look (DAR emerald/green), quiet motion.
+   Enhancements target stable Tailwind class combos already in
+   the markup, so pages restyle without JSX churn.
+   ============================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f8f7;
+  --foreground: #12130f;
+
+  /* Brand — DAR green */
+  --brand-50: #edfaf1;
+  --brand-100: #d3f2dd;
+  --brand-500: #12894a;
+  --brand-600: #0f7a41;
+  --brand-700: #0c6435;
+  --brand-ring: 15 122 65;
+
+  /* Elevation + motion */
+  --shadow-sm: 0 1px 2px rgb(16 19 15 / 0.04), 0 1px 3px rgb(16 19 15 / 0.05);
+  --shadow-md: 0 4px 12px -2px rgb(16 19 15 / 0.08), 0 2px 6px -2px rgb(16 19 15 / 0.05);
+  --shadow-lg: 0 12px 30px -8px rgb(16 19 15 / 0.14), 0 6px 12px -6px rgb(16 19 15 / 0.08);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @theme inline {
@@ -14,15 +35,187 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #f7f8f7;
+    --foreground: #12130f;
   }
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), "Segoe UI", Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- Page backdrop: soft emerald-tinted wash ---------- */
+.min-h-dvh.bg-zinc-50 {
+  background:
+    radial-gradient(1100px 520px at 12% -8%, rgb(18 137 74 / 0.06), transparent 60%),
+    radial-gradient(900px 480px at 108% 4%, rgb(18 137 74 / 0.05), transparent 55%),
+    linear-gradient(180deg, #f8faf8 0%, #f4f6f4 100%);
+  animation: svr-fade-in 0.5s var(--ease-out) both;
+}
+
+/* ---------- Cards: hairline border, soft shadow, quiet lift ---------- */
+.bg-white.rounded-xl,
+.bg-white.rounded-lg {
+  border-color: rgb(16 19 15 / 0.07);
+  box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow 0.28s var(--ease-out),
+    transform 0.28s var(--ease-out),
+    border-color 0.28s var(--ease-out);
+}
+
+.bg-white.rounded-xl {
+  animation: svr-enter 0.55s var(--ease-out) both;
+}
+
+.bg-white.rounded-xl:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgb(16 19 15 / 0.1);
+}
+
+/* ---------- Buttons: press feedback + hover depth ---------- */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled) {
+  transition:
+    transform 0.12s var(--ease-out),
+    box-shadow 0.22s var(--ease-out),
+    background-color 0.2s ease,
+    opacity 0.2s ease,
+    filter 0.2s ease;
+}
+
+button:not(:disabled):hover {
+  filter: saturate(1.03) brightness(1.02);
+}
+
+button:not(:disabled):active {
+  transform: translateY(1px) scale(0.985);
+}
+
+/* Solid dark CTAs get a subtle shadow so they read as raised */
+.bg-zinc-900:not(:disabled),
+a.bg-zinc-900 {
+  box-shadow: 0 1px 2px rgb(16 19 15 / 0.18), 0 6px 16px -8px rgb(16 19 15 / 0.35);
+}
+
+/* ---------- Inputs: smooth emerald focus ---------- */
+input,
+select,
+textarea {
+  transition:
+    box-shadow 0.16s var(--ease-out),
+    border-color 0.16s var(--ease-out),
+    background-color 0.16s ease;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: rgb(var(--brand-ring));
+  box-shadow: 0 0 0 3px rgb(var(--brand-ring) / 0.16);
+}
+
+/* ---------- Table rows: quiet hover ---------- */
+tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+tbody tr:hover {
+  background-color: rgb(18 137 74 / 0.035);
+}
+
+/* ---------- Nav links: animated active underline ---------- */
+header nav a {
+  position: relative;
+}
+
+header nav a::after {
+  content: "";
+  position: absolute;
+  left: 0.625rem;
+  right: 0.625rem;
+  bottom: 0.25rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand-600);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.28s var(--ease-out);
+}
+
+header nav a.text-emerald-700::after {
+  transform: scaleX(1);
+}
+
+/* ---------- Menu dropdown: scale/fade in ---------- */
+header .absolute.rounded-xl,
+header .absolute.rounded-lg {
+  animation: svr-pop 0.16s var(--ease-out) both;
+  transform-origin: top right;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ---------- DAR seal on landing: gentle float ---------- */
+main img[alt*="seal"] {
+  animation: svr-float 6s ease-in-out infinite, svr-enter 0.7s var(--ease-out) both;
+}
+
+/* ============================================================
+   Keyframes
+   ============================================================ */
+@keyframes svr-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes svr-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes svr-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes svr-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 /* Mobile opening splash — DAR mark + optional dots (see MobileOpeningSplash) */
@@ -67,7 +260,28 @@ body {
   animation: dar-dot-bounce 0.9s ease-in-out 0.3s infinite;
 }
 
+/* ============================================================
+   Respect reduced-motion — kill all decorative animation
+   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .min-h-dvh.bg-zinc-50,
+  .bg-white.rounded-xl,
+  main img[alt*="seal"],
+  header .absolute.rounded-xl,
+  header .absolute.rounded-lg {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+
   .mobile-opening-splash {
     display: none !important;
   }

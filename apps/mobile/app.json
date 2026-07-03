@@ -14,11 +14,14 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "bundleIdentifier": "com.example.svrbooking",
-      "supportsTablet": true
+      "bundleIdentifier": "ph.gov.dar.svrbooking",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "package": "com.example.svrbooking",
+      "package": "ph.gov.dar.svrbooking",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -30,7 +33,11 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "webUrl": "${EXPO_PUBLIC_WEB_URL}"
-    }
+      "webUrl": "${EXPO_PUBLIC_WEB_URL}",
+      "eas": {
+        "projectId": "16cc6125-4690-4f57-b355-a9fc64b57ac9"
+      }
+    },
+    "owner": "darkweb2688"
   }
 }

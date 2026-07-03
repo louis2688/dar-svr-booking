@@ -28,10 +28,10 @@
         "./src/*"
       ],
       "@svr/shared": [
-        "../../packages/shared/src/index.ts"
+        "./src/shared/index.ts"
       ],
       "@svr/shared/*": [
-        "../../packages/shared/src/*"
+        "./src/shared/*"
       ]
     }
   },
@@ -45,6 +45,5 @@
   ],
   "exclude": [
     "node_modules"
-  ],
-  "extends": "expo/tsconfig.base"
+  ]
 }
