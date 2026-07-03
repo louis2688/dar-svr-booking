@@ -285,7 +285,7 @@ function VehicleEditorRow(props: {
 
   return (
     <div className={`rounded-lg border p-3 ${isActive ? "bg-white" : "bg-zinc-50"}`}>
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div className="grid flex-1 gap-2 sm:grid-cols-2 sm:gap-3">
           <div className="min-w-0">
             <label className="text-xs font-medium text-zinc-600">Name</label>
