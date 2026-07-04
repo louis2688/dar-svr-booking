@@ -116,11 +116,8 @@ export function BookingsTable(props: {
             </tr>
           ) : (
             rows.map((b) => {
-              const isOwner = props.currentUserId != null && b.requestedById === props.currentUserId;
-              const canEdit = Boolean(props.isAdmin || (isOwner && b.status === "PENDING"));
-              const canCancel = Boolean(
-                (props.isAdmin || isOwner) && (b.status === "PENDING" || b.status === "APPROVED")
-              );
+              const canEdit = Boolean(props.isAdmin);
+              const canCancel = Boolean(props.isAdmin && (b.status === "PENDING" || b.status === "APPROVED"));
               const canDelete = Boolean(props.isAdmin);
               const busy = busyId === b.id;
 

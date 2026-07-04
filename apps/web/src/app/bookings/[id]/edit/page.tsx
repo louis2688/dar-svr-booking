@@ -80,8 +80,8 @@ export default function EditBookingPage() {
   }, [isAdmin]);
 
   useEffect(() => {
-    if (!isAdmin && status && status !== "PENDING") setLocked(true);
-  }, [isAdmin, status]);
+    if (!isAdmin) setLocked(true);
+  }, [isAdmin]);
 
   async function save() {
     setSaving(true);
@@ -139,8 +139,7 @@ export default function EditBookingPage() {
 
         {locked ? (
           <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-            This request is no longer pending, so it can’t be edited. Cancel it from the bookings list and submit a
-            new one if you need changes.
+            Only admins can edit bookings. Contact an admin if this request needs changes.
           </div>
         ) : (
           <div className="mt-6 rounded-xl border bg-white p-5">

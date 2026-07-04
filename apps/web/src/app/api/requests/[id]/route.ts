@@ -31,33 +31,25 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 }
 
 /**
- * PATCH /api/requests/:id — edit an existing booking.
- * - Owner (non-admin): may edit only their own request while it is PENDING.
- *   Vehicle assignment stays admin-only, same as create.
- * - Admin: may edit any request regardless of status, including reassigning
- *   the vehicle. If the (possibly new) vehicle/date/startTime combination
- *   collides with another APPROVED booking, the edit is rejected (409) —
- *   editing must never silently create a double-booking.
+ * PATCH /api/requests/:id — edit an existing booking. Admin-only: owners can
+ * no longer self-edit their own request regardless of status.
  */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const me = await resolveSessionDbUser();
   if (!me.ok) return NextResponse.json({ error: "UNAUTHORIZED", message: me.message }, { status: me.status });
 
+  if (me.role !== "ADMIN") {
+    return NextResponse.json({ error: "FORBIDDEN", message: "Only admins can edit bookings." }, { status: 403 });
+  }
+  const isAdmin = true;
+
   const { id } = await ctx.params;
-  const isAdmin = me.role === "ADMIN";
 
   const loaded = await loadOwned(id, me.userId, isAdmin);
   if (!loaded.ok) {
     return NextResponse.json({ error: "NOT_FOUND", message: loaded.message }, { status: loaded.status });
   }
   const existing = loaded.reqRow;
-
-  if (!isAdmin && existing.status !== "PENDING") {
-    return NextResponse.json(
-      { error: "LOCKED", message: "Only pending requests can be edited. Cancel it and submit a new one instead." },
-      { status: 409 }
-    );
-  }
 
   const body = await req.json().catch(() => null);
   const parsed = CreateRequestSchema.safeParse(body);
