@@ -34,6 +34,39 @@ export async function POST(req: Request) {
   const input = parsed.data;
   const bookingDate = dateKeyToUTCDateMidnight(input.date);
 
+  // Only admins choose the vehicle. User submissions always start unassigned —
+  // the admin picks the vehicle before approving. Enforced here regardless of payload.
+  const isAdmin = resolvedUser.role === "ADMIN";
+  const vehicleId = isAdmin ? (input.vehicleId ?? null) : null;
+
+  if (vehicleId) {
+    const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
+    if (!vehicle || vehicle.active === false) {
+      return NextResponse.json(
+        { error: "INVALID_VEHICLE", message: "Selected vehicle does not exist or is inactive." },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Double-submit guard: a rapid duplicate (double-tap, network retry) returns the
+  // just-created row instead of minting a second control number.
+  const recentDuplicate = await prisma.bookingRequest.findFirst({
+    where: {
+      requestedById: resolvedUser.userId,
+      date: bookingDate,
+      startTime: input.startTime,
+      destination: input.destination,
+      purpose: input.purpose,
+      status: "PENDING",
+      createdAt: { gte: new Date(Date.now() - 60_000) }
+    },
+    include: { passengers: true, vehicle: true }
+  });
+  if (recentDuplicate) {
+    return NextResponse.json(recentDuplicate, { status: 200 });
+  }
+
   const controlMonthKey = manilaYearMonthKey(new Date());
   const controlDate = monthKeyToUTCDateFirstOfMonth(controlMonthKey);
 
@@ -53,7 +86,7 @@ export async function POST(req: Request) {
             controlNo,
             controlDate,
             monthlySeq: counter.lastSeq,
-            vehicleId: input.vehicleId,
+            vehicleId,
             date: bookingDate,
             startTime: input.startTime,
             destination: input.destination,

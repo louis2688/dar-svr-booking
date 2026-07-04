@@ -100,8 +100,9 @@ model BookingRequest {
   controlDate   DateTime
   monthlySeq    Int
 
-  vehicleId     String
-  vehicle       Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  // Null while PENDING for user-created requests; admin assigns the vehicle at/before approval.
+  vehicleId     String?
+  vehicle       Vehicle?      @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
 
   date          DateTime
   /// Manila trip start wall time HH:mm (matches booking dropdown)

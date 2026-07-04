@@ -8,7 +8,8 @@ export type BookingStatus = z.infer<typeof BookingStatusSchema>;
 
 export const CreateRequestSchema = z
   .object({
-    vehicleId: z.string().min(1),
+    /** Admins may pre-assign a vehicle; user requests omit it (admin assigns at approval). */
+    vehicleId: z.string().min(1).optional(),
     date: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD"),

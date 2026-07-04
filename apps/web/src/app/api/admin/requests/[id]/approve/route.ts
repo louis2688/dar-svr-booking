@@ -18,39 +18,95 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const body = await req.json().catch(() => ({}));
   const adminNotes = typeof body?.adminNotes === "string" ? body.adminNotes : undefined;
+  const bodyVehicleId =
+    typeof body?.vehicleId === "string" && body.vehicleId.trim() ? body.vehicleId.trim() : undefined;
 
   const adminId = resolvedAdmin.userId;
 
   try {
-    const updated = await prisma.$transaction(async (tx) => {
-      const result = await tx.bookingRequest.updateMany({
-        where: { id, status: "PENDING" },
-        data: {
-          status: "APPROVED",
-          adminNotes,
-          decidedById: adminId,
-          decidedAt: new Date()
-        }
-      });
-
-      if (result.count === 0) {
-        throw new Prisma.PrismaClientKnownRequestError("Only PENDING requests can be approved.", {
-          code: "P2025",
-          clientVersion: Prisma.prismaVersion.client
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        const reqRow = await tx.bookingRequest.findUnique({
+          where: { id },
+          select: { status: true, vehicleId: true, date: true, startTime: true }
         });
-      }
 
-      return tx.bookingRequest.findUniqueOrThrow({
-        where: { id },
-        include: { vehicle: true, passengers: true }
-      });
-    });
+        if (!reqRow || reqRow.status !== "PENDING") {
+          throw new Prisma.PrismaClientKnownRequestError("Only PENDING requests can be approved.", {
+            code: "P2025",
+            clientVersion: Prisma.prismaVersion.client
+          });
+        }
+
+        // Vehicle is assigned by the admin: either sent with this approval or set earlier.
+        const vehicleId = bodyVehicleId ?? reqRow.vehicleId;
+        if (!vehicleId) {
+          throw Object.assign(new Error("Assign a vehicle before approving this request."), {
+            appCode: "VEHICLE_REQUIRED" as const
+          });
+        }
+
+        const vehicle = await tx.vehicle.findUnique({ where: { id: vehicleId } });
+        if (!vehicle || vehicle.active === false) {
+          throw Object.assign(new Error("Selected vehicle does not exist or is inactive."), {
+            appCode: "INVALID_VEHICLE" as const
+          });
+        }
+
+        const clash = await tx.bookingRequest.findFirst({
+          where: {
+            id: { not: id },
+            vehicleId,
+            date: reqRow.date,
+            startTime: reqRow.startTime,
+            status: "APPROVED"
+          },
+          select: { id: true }
+        });
+        if (clash) {
+          throw Object.assign(new Error("Vehicle is already booked for this date and start time."), {
+            appCode: "START_TIME_ALREADY_BOOKED" as const
+          });
+        }
+
+        await tx.bookingRequest.update({
+          where: { id },
+          data: {
+            status: "APPROVED",
+            vehicleId,
+            adminNotes,
+            decidedById: adminId,
+            decidedAt: new Date()
+          }
+        });
+
+        return tx.bookingRequest.findUniqueOrThrow({
+          where: { id },
+          include: { vehicle: true, passengers: true }
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
 
     return NextResponse.json({
       ...updated,
       message: "Approved"
     });
   } catch (error: unknown) {
+    const appCode = (error as { appCode?: string })?.appCode;
+    if (appCode === "VEHICLE_REQUIRED" || appCode === "INVALID_VEHICLE") {
+      return NextResponse.json(
+        { error: appCode, message: (error as Error).message },
+        { status: 422 }
+      );
+    }
+    if (appCode === "START_TIME_ALREADY_BOOKED") {
+      return NextResponse.json(
+        { error: appCode, message: (error as Error).message },
+        { status: 409 }
+      );
+    }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2025") {
         return NextResponse.json(
@@ -58,19 +114,22 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           { status: 422 }
         );
       }
+      // Backstop unique index fired: another approval won the same vehicle/date/startTime slot.
       if (error.code === "P2002") {
-        // Unique constraint violation -> same start time already booked (approved)
-        const reqRow = await prisma.bookingRequest.findUnique({
-          where: { id },
-          select: { vehicleId: true, date: true, startTime: true }
-        });
         return NextResponse.json(
           {
             error: "START_TIME_ALREADY_BOOKED",
-            message: "Vehicle is already booked for this date and start time.",
-            vehicleId: reqRow?.vehicleId,
-            date: reqRow?.date?.toISOString().slice(0, 10),
-            startTime: reqRow?.startTime
+            message: "Vehicle is already booked for this date and start time."
+          },
+          { status: 409 }
+        );
+      }
+      // Serializable transaction conflict: a concurrent approval raced this one.
+      if (error.code === "P2034") {
+        return NextResponse.json(
+          {
+            error: "APPROVAL_CONFLICT",
+            message: "Another approval was processed at the same time. Refresh and try again."
           },
           { status: 409 }
         );

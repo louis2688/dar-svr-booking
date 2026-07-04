@@ -12,9 +12,12 @@ type RequestRow = {
   purpose: string;
   requestorName: string;
   status: string;
-  vehicle?: { name: string; plateNo?: string | null };
+  vehicleId?: string | null;
+  vehicle?: { id: string; name: string; plateNo?: string | null } | null;
   passengers?: { id: string; fullName: string }[];
 };
+
+type Vehicle = { id: string; name: string; plateNo?: string | null };
 
 type RequestsResponse = {
   error?: string;
@@ -24,19 +27,39 @@ type RequestsResponse = {
 
 export default function AdminPage() {
   const [items, setItems] = useState<RequestRow[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** requestId -> vehicleId chosen in the picker (admin assigns before approval). */
+  const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  /** Seed pickers from pre-assigned vehicles, but only ids the picker can actually display
+      (inactive/removed vehicles are not in the options — seeding them would look blank
+      while keeping Approve enabled). */
+  function seedAssignments(rows: RequestRow[], selectable: Vehicle[]) {
+    const allowed = new Set(selectable.map((v) => v.id));
+    setAssignments((prev) => {
+      const next = { ...prev };
+      for (const r of rows) {
+        if (!next[r.id] && r.vehicleId && allowed.has(r.vehicleId)) next[r.id] = r.vehicleId;
+      }
+      return next;
+    });
+  }
 
   async function refresh() {
     setLoading(true);
     setError(null);
     const res = await fetch("/api/admin/requests?status=PENDING");
-    const json = await res.json().catch(() => null);
+    const json = (await res.json().catch(() => null)) as RequestsResponse | null;
     if (!res.ok) {
       setError(json?.error ?? "Failed to load requests");
       setItems([]);
     } else {
-      setItems(json.items ?? []);
+      const rows = json?.items ?? [];
+      setItems(rows);
+      seedAssignments(rows, vehicles);
     }
     setLoading(false);
   }
@@ -44,21 +67,28 @@ export default function AdminPage() {
   useEffect(() => {
     let ignore = false;
 
-    async function loadInitialRequests() {
-      const res = await fetch("/api/admin/requests?status=PENDING");
-      const json = (await res.json().catch(() => null)) as RequestsResponse | null;
+    async function loadInitial() {
+      const [reqRes, vehRes] = await Promise.all([
+        fetch("/api/admin/requests?status=PENDING"),
+        fetch("/api/vehicles")
+      ]);
+      const reqJson = (await reqRes.json().catch(() => null)) as RequestsResponse | null;
+      const vehJson = (await vehRes.json().catch(() => null)) as { items?: Vehicle[] } | null;
       if (ignore) return;
 
-      if (!res.ok) {
-        setError(json?.error ?? "Failed to load requests");
+      if (!reqRes.ok) {
+        setError(reqJson?.error ?? "Failed to load requests");
         setItems([]);
       } else {
-        setItems(json?.items ?? []);
+        const rows = reqJson?.items ?? [];
+        setItems(rows);
+        seedAssignments(rows, vehJson?.items ?? []);
       }
+      setVehicles(vehJson?.items ?? []);
       setLoading(false);
     }
 
-    void loadInitialRequests();
+    void loadInitial();
 
     return () => {
       ignore = true;
@@ -66,8 +96,19 @@ export default function AdminPage() {
   }, []);
 
   async function approve(id: string) {
-    const res = await fetch(`/api/admin/requests/${id}/approve`, { method: "POST" });
+    const vehicleId = assignments[id];
+    if (!vehicleId) {
+      alert("Assign a vehicle first — user requests have no vehicle until you choose one.");
+      return;
+    }
+    setBusyId(id);
+    const res = await fetch(`/api/admin/requests/${id}/approve`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ vehicleId })
+    });
     const json = (await res.json().catch(() => null)) as RequestsResponse | null;
+    setBusyId(null);
     if (!res.ok) {
       alert(json?.message ?? json?.error ?? "Approval failed");
       return;
@@ -76,8 +117,10 @@ export default function AdminPage() {
   }
 
   async function reject(id: string) {
+    setBusyId(id);
     const res = await fetch(`/api/admin/requests/${id}/reject`, { method: "POST" });
     const json = (await res.json().catch(() => null)) as RequestsResponse | null;
+    setBusyId(null);
     if (!res.ok) {
       alert(json?.message ?? json?.error ?? "Rejection failed");
       return;
@@ -91,7 +134,9 @@ export default function AdminPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold">Admin approvals</h1>
-            <p className="mt-1 text-sm text-zinc-600">Approve or reject pending vehicle requests.</p>
+            <p className="mt-1 text-sm text-zinc-600">
+              Assign a vehicle to each pending request, then approve or reject.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <a
@@ -120,13 +165,18 @@ export default function AdminPage() {
           ) : (
             items.map((r) => (
               <div key={r.id} className="rounded-xl border bg-white p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                   <div>
                     <div className="text-sm text-zinc-500">{r.controlNo}</div>
                     <div className="mt-1 text-base font-semibold">
-                      {new Date(r.date).toISOString().slice(0, 10)} ({formatBookingTimeLabel(r.startTime)}) —{" "}
-                      {r.vehicle?.name ?? "Vehicle"}
+                      {new Date(r.date).toISOString().slice(0, 10)} ({formatBookingTimeLabel(r.startTime)})
+                      {r.vehicle?.name ? ` — ${r.vehicle.name}` : ""}
                     </div>
+                    {!r.vehicleId ? (
+                      <div className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+                        No vehicle yet — assign below
+                      </div>
+                    ) : null}
                     <div className="mt-2 text-sm">
                       <span className="font-medium">Requestor:</span> {r.requestorName}
                     </div>
@@ -144,27 +194,51 @@ export default function AdminPage() {
                     ) : null}
                   </div>
 
-                  <div className="flex gap-2">
-                    <a
-                      className="rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
-                      href={`/admin/requests/${r.id}/print`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Print
-                    </a>
-                    <button
-                      className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
-                      onClick={() => approve(r.id)}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500"
-                      onClick={() => reject(r.id)}
-                    >
-                      Reject
-                    </button>
+                  <div className="flex flex-col gap-2">
+                    <div>
+                      <label className="text-xs font-medium text-zinc-600">Vehicle (admin assigns)</label>
+                      <select
+                        className="mt-1 w-full rounded-lg border px-3 py-2 text-sm sm:w-56"
+                        value={assignments[r.id] ?? ""}
+                        onChange={(e) =>
+                          setAssignments((prev) => ({ ...prev, [r.id]: e.target.value }))
+                        }
+                        disabled={busyId === r.id}
+                      >
+                        <option value="">Select vehicle…</option>
+                        {vehicles.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.name}
+                            {v.plateNo ? ` (${v.plateNo})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex gap-2">
+                      <a
+                        className="rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+                        href={`/admin/requests/${r.id}/print`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Print
+                      </a>
+                      <button
+                        className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                        disabled={busyId === r.id || !assignments[r.id]}
+                        title={!assignments[r.id] ? "Assign a vehicle first" : undefined}
+                        onClick={() => approve(r.id)}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+                        disabled={busyId === r.id}
+                        onClick={() => reject(r.id)}
+                      >
+                        Reject
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

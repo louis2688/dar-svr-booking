@@ -9,7 +9,9 @@ import {
   manilaYearMonthKeyFromDate,
   type BookingTime
 } from "@svr/shared";
-import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Vehicle = { id: string; name: string; plateNo?: string | null };
 type AvailabilityDay = { date: string; bookedTimes: string[] };
@@ -35,6 +37,11 @@ function monthDays(monthKey: string) {
 }
 
 export default function RequestPage() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  // Only admins pick the vehicle. Users submit without one; the admin assigns it at approval.
+  const isAdmin = (session as { role?: string } | null)?.role === "ADMIN";
+
   const [now, setNow] = useState(() => new Date());
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleId, setVehicleId] = useState<string>("");
@@ -50,12 +57,17 @@ export default function RequestPage() {
   const [passengersText, setPassengersText] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
+  /** Synchronous double-click guard: `submitting` state only disables the button after a
+      re-render, so two fast taps can both enter submit(). The ref blocks the second
+      immediately. */
+  const submitLockRef = useRef(false);
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** Separate from form errors: availability loads in the background when a vehicle exists. */
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isAdmin) return;
     (async () => {
       const res = await fetch("/api/vehicles");
       if (!res.ok) {
@@ -70,10 +82,10 @@ export default function RequestPage() {
       setVehicles(json.items ?? []);
       if (json.items?.[0]?.id) setVehicleId((current) => current || json.items?.[0]?.id || "");
     })();
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
-    if (!vehicleId) return;
+    if (!isAdmin || !vehicleId) return;
     let cancelled = false;
     (async () => {
       setAvailabilityError(null);
@@ -109,7 +121,7 @@ export default function RequestPage() {
     return () => {
       cancelled = true;
     };
-  }, [vehicleId, month]);
+  }, [isAdmin, vehicleId, month]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
@@ -156,6 +168,8 @@ export default function RequestPage() {
   const noTimesLeft = Boolean(date && selectableTimes.length === 0);
 
   async function submit() {
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
     setSubmitting(true);
     setError(null);
     setResult(null);
@@ -169,7 +183,7 @@ export default function RequestPage() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        vehicleId,
+        ...(isAdmin && vehicleId ? { vehicleId } : {}),
         date,
         startTime,
         destination,
@@ -190,6 +204,19 @@ export default function RequestPage() {
       setResult({ controlNo: json.controlNo, id: json.id });
     }
     setSubmitting(false);
+    submitLockRef.current = false;
+  }
+
+  /** "Yes, add another": clear trip fields for a fresh request (requestor name kept). */
+  function startAnotherRequest() {
+    setResult(null);
+    setError(null);
+    setDate("");
+    setStartTime(BOOKING_TIME_OPTIONS[0]);
+    setDestination("");
+    setPurpose("");
+    setTimeText("");
+    setPassengersText("");
   }
 
   return (
@@ -197,10 +224,9 @@ export default function RequestPage() {
       <div className="mx-auto max-w-5xl">
         <h1 className="text-xl font-semibold">Create Service Vehicle Request</h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Select a vehicle, pick a trip date and start time (Manila), then fill out details. Same-day bookings need at
-          least 1 hour before the chosen time. Past calendar days cannot be selected. Approved bookings for the selected
-          vehicle and month appear in the calendar as soon as a vehicle is chosen (you do not need to fill the rest of
-          the form first).
+          {isAdmin
+            ? "Select a vehicle, pick a trip date and start time (Manila), then fill out details. Same-day bookings need at least 1 hour before the chosen time. Past calendar days cannot be selected. Approved bookings for the selected vehicle and month appear in the calendar as soon as a vehicle is chosen."
+            : "Pick a trip date and start time (Manila), then fill out details. Same-day bookings need at least 1 hour before the chosen time. The admin assigns a vehicle to your request when it is approved."}
         </p>
 
         {availabilityError ? (
@@ -218,8 +244,58 @@ export default function RequestPage() {
           </div>
         ) : null}
 
+        {result ? (
+          <div className="mx-auto mt-10 max-w-md rounded-xl border border-emerald-200 bg-white p-6 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl text-emerald-700">
+              ✓
+            </div>
+            <h2 className="mt-3 text-lg font-semibold">Request submitted</h2>
+            <p className="mt-1 text-sm text-zinc-600">
+              Control no: <span className="font-semibold text-zinc-900">{result.controlNo}</span>
+            </p>
+            {!isAdmin ? (
+              <p className="mt-2 text-xs text-zinc-500">
+                The admin will assign a vehicle when your request is approved.
+              </p>
+            ) : null}
+            <a
+              className="mt-4 inline-flex rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+              href={`/requests/${result.id}/print`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Print / Save PDF
+            </a>
+            <div className="mt-6 border-t pt-4">
+              <p className="text-sm font-medium">Add another request?</p>
+              <div className="mt-3 flex justify-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                  onClick={startAnotherRequest}
+                >
+                  Yes, add another
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border bg-white px-4 py-2 text-sm font-medium hover:bg-zinc-50"
+                  onClick={() => router.push("/")}
+                >
+                  No, go to homepage
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div className="rounded-xl border bg-white p-4">
+            {!isAdmin ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                <span className="font-medium">Vehicle assignment:</span> the admin chooses the vehicle for your trip
+                when approving this request — you only pick the date, time, and trip details.
+              </div>
+            ) : (
+            <>
             <div className="flex items-end gap-3">
               <div className="flex-1">
                 <label className="text-sm font-medium">Vehicle</label>
@@ -303,6 +379,8 @@ export default function RequestPage() {
                 );
               })}
             </div>
+            </>
+            )}
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="min-w-0">
@@ -397,28 +475,12 @@ export default function RequestPage() {
               </div>
 
               {error ? <div className="text-sm text-red-600">{error}</div> : null}
-              {result ? (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
-                  Submitted. Control no: <span className="font-semibold">{result.controlNo}</span>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <a
-                      className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-800"
-                      href={`/requests/${result.id}/print`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Print / Save PDF
-                    </a>
-                  </div>
-                </div>
-              ) : null}
 
               <button
                 type="button"
                 className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
                 disabled={
-                  vehicles.length === 0 ||
-                  !vehicleId ||
+                  (isAdmin && (vehicles.length === 0 || !vehicleId)) ||
                   !date ||
                   !destination ||
                   !purpose ||
@@ -433,6 +495,7 @@ export default function RequestPage() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

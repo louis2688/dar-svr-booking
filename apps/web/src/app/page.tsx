@@ -191,8 +191,14 @@ export default async function Home({
                     <tr key={b.id} className="border-t">
                       <td className="py-3 pr-3 font-medium">{b.controlNo}</td>
                       <td className="py-3 pr-3">
-                        {b.vehicle.name}
-                        {b.vehicle.plateNo ? <span className="text-zinc-500"> ({b.vehicle.plateNo})</span> : null}
+                        {b.vehicle ? (
+                          <>
+                            {b.vehicle.name}
+                            {b.vehicle.plateNo ? <span className="text-zinc-500"> ({b.vehicle.plateNo})</span> : null}
+                          </>
+                        ) : (
+                          <span className="text-zinc-500">Unassigned</span>
+                        )}
                       </td>
                       <td className="py-3 pr-3">{b.date.toISOString().slice(0, 10)}</td>
                       <td className="py-3 pr-3">{formatBookingTimeLabel(b.startTime)}</td>

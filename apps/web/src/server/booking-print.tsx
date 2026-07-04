@@ -16,7 +16,7 @@ export type PrintableBookingRequest = {
   timeText?: string | null;
   requestorName: string;
   createdAt: Date;
-  vehicle: { name: string; plateNo?: string | null };
+  vehicle: { name: string; plateNo?: string | null } | null;
   passengers: { fullName: string }[];
 };
 
@@ -72,8 +72,9 @@ export function BookingPrintDocument(props: { req: PrintableBookingRequest }) {
             <div className="col-span-2">
               <div className="text-xs text-zinc-500">Vehicle</div>
               <div className="font-medium">
-                {req.vehicle.name}
-                {req.vehicle.plateNo ? ` (${req.vehicle.plateNo})` : ""}
+                {req.vehicle
+                  ? `${req.vehicle.name}${req.vehicle.plateNo ? ` (${req.vehicle.plateNo})` : ""}`
+                  : "To be assigned by admin"}
               </div>
             </div>
             <div>
