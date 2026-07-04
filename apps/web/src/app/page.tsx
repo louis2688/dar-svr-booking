@@ -59,25 +59,20 @@ export default async function Home({
     return (
       <div className="min-h-dvh bg-zinc-50 text-zinc-900">
         <main className="mx-auto flex min-h-dvh max-w-3xl flex-col items-center justify-center px-6 py-12 text-center">
-          <div className="w-full max-w-md">
-            <div className="mx-auto w-full max-w-[320px]">
-              {/* SVG via <img> (Next/Image blocks SVG by default without extra config) */}
-              <img
-                src="/branding/dar.svg"
-                alt="Department of Agrarian Reform (DAR) seal"
-                width={490}
-                height={490}
-                className="mx-auto h-auto w-full max-w-[320px]"
-                loading="eager"
-                decoding="async"
-              />
+          <div className="mx-auto w-full max-w-md">
+            <img
+              src="/branding/svr-logo.png"
+              alt="SVR — Service Vehicle Request"
+              width={384}
+              height={256}
+              className="mx-auto h-auto w-full max-w-[340px]"
+              loading="eager"
+              decoding="async"
+            />
+            <div className="mt-4 text-base font-semibold tracking-tight text-black">
+              DEPARTMENT OF AGRARIAN REFORM · MARINDUQUE
             </div>
-            <div className="mt-6 text-lg font-semibold tracking-tight text-black">
-              DEPARTMENT OF AGRARIAN REFORM
-              <br />
-              MARINDUQUE
-            </div>
-            <p className="mt-6 text-sm text-zinc-600">Service Vehicle Request (SVR) system</p>
+            <p className="mt-2 text-sm text-zinc-600">Service Vehicle Request (SVR) system</p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
               <Link
                 className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
