@@ -59,20 +59,17 @@ export const authOptions: NextAuthOptions = {
         token.userId = user.id;
         token.role = user.role;
         token.name = user.name ?? null;
-        token.picture = user.image ?? null;
         const remember = Boolean(user.remember);
         token.remember = remember;
         const ttl = remember ? MAX_SESSION_SECONDS : BRIEF_SESSION_SECONDS;
         token.exp = Math.floor(Date.now() / 1000) + ttl;
       }
-      // Live refresh after a profile save via useSession().update({ name, image }).
-      if (trigger === "update" && session) {
-        if (typeof (session as { name?: unknown }).name === "string") {
-          token.name = (session as { name: string }).name;
-        }
-        if ("image" in (session as object)) {
-          token.picture = (session as { image?: string | null }).image ?? null;
-        }
+      // Live refresh of name after a profile save via useSession().update({ name }).
+      // NOTE: never store the avatar image here — the JWT rides in a cookie and a
+      // data-URL avatar (~30KB) overflows request headers (HTTP 431). Avatar is read
+      // from the DB in the session callback below instead.
+      if (trigger === "update" && session && typeof (session as { name?: unknown }).name === "string") {
+        token.name = (session as { name: string }).name;
       }
       return token;
     },
@@ -81,7 +78,14 @@ export const authOptions: NextAuthOptions = {
       session.role = token.role;
       if (session.user) {
         session.user.name = (token.name as string | null) ?? undefined;
-        session.user.image = (token.picture as string | null) ?? undefined;
+        // Avatar is read fresh from the DB so it never rides in the session cookie.
+        if (token.userId) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.userId },
+            select: { image: true }
+          });
+          session.user.image = dbUser?.image ?? undefined;
+        }
       }
       return session;
     }
