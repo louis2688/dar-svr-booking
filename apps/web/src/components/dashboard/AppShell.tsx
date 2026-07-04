@@ -139,9 +139,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           mounted && collapsed ? "w-[68px]" : "w-56"
         ].join(" ")}
       >
-        <Link href="/" className={`flex items-center gap-2 px-1 ${collapsed ? "justify-center" : ""}`}>
-          <img src="/branding/dar.svg" alt="" width={32} height={32} className="h-8 w-8 shrink-0 object-contain" />
-          {!collapsed ? <span className="text-base font-bold tracking-tight">SVR Booking</span> : null}
+        <Link href="/" className={`flex items-center px-1 ${collapsed ? "justify-center" : ""}`} aria-label="SVR Booking home">
+          <img
+            src="/branding/svr-logo.png"
+            alt="SVR"
+            className={collapsed ? "h-8 w-auto max-w-full object-contain" : "h-10 w-auto object-contain"}
+          />
         </Link>
 
         <div className="mt-6 flex-1">
@@ -192,9 +195,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="absolute inset-0 bg-black/40" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
           <div className="absolute left-0 top-0 flex h-dvh w-64 max-w-[80%] flex-col border-r border-zinc-200 bg-white px-3 py-4 shadow-xl">
             <div className="flex items-center justify-between px-1">
-              <Link href="/" className="flex items-center gap-2" onClick={() => setDrawerOpen(false)}>
-                <img src="/branding/dar.svg" alt="" width={30} height={30} className="h-8 w-8 object-contain" />
-                <span className="text-base font-bold tracking-tight">SVR Booking</span>
+              <Link href="/" className="flex items-center" onClick={() => setDrawerOpen(false)} aria-label="SVR Booking home">
+                <img src="/branding/svr-logo.png" alt="SVR" className="h-10 w-auto object-contain" />
               </Link>
               <button
                 type="button"

@@ -37,11 +37,11 @@ export function MobileOpeningSplash() {
       ].join(" ")}
     >
       <img
-        src="/branding/dar.svg"
+        src="/branding/svr-logo.png"
         alt=""
-        width={120}
+        width={180}
         height={120}
-        className="dar-opening-logo h-[120px] w-[120px] max-w-[33vw] object-contain"
+        className="dar-opening-logo h-[120px] w-auto max-w-[60vw] object-contain"
         decoding="async"
       />
       <p className="sr-only">Loading</p>
