@@ -76,11 +76,13 @@ function wrapTwoLines(text: string, charsPerLine = 62): [string, string] {
   return [line1, line2];
 }
 
-/** Two stacked underlined rows — long text (e.g. Purpose) wraps onto its own second line. */
+/** Always two stacked underlined rows for Purpose — long text wraps onto the
+    second row; short text leaves it blank so there's always room to write a
+    continuation by hand on a printed copy. */
 function TwoLineField({ label, text }: { label: React.ReactNode; text: string }) {
   const [line1, line2] = wrapTwoLines(text);
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <div className="flex items-end gap-2">
         <div className="w-24 shrink-0 font-medium">{label}</div>
         <Line>{line1}</Line>

@@ -68,7 +68,10 @@ function titleFor(pathname: string | null): string {
   if (pathname === "/") return "Dashboard";
   if (pathname.startsWith("/request")) return "New Request";
   if (pathname.startsWith("/admin/vehicles")) return "Vehicles";
+  if (pathname.startsWith("/admin/signatories")) return "Signatories";
   if (pathname.startsWith("/admin")) return "Approvals";
+  if (pathname.startsWith("/bookings")) return "Bookings";
+  if (pathname.startsWith("/profile")) return "Profile";
   return "SVR Booking";
 }
 

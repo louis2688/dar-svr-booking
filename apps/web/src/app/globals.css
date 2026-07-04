@@ -303,6 +303,12 @@ main img[alt*="seal"] {
    ============================================================ */
 .dark {
   color-scheme: dark !important;
+  /* Redefine the base text color for this subtree so any element that relies
+     on plain inheritance (no explicit text-zinc-* class — e.g. table cells
+     that only set layout classes like "px-3 py-3") also flips correctly,
+     instead of only the elements we've explicitly targeted below. */
+  --foreground: #f4f4f5 !important;
+  color: var(--foreground) !important;
 }
 
 .dark .bg-white {
