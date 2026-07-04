@@ -5,9 +5,15 @@ import { useEffect, useRef, useState } from "react";
 
 type Me = { id: string; name: string | null; email: string | null; image: string | null; role: string };
 
+/** Smallest allowed source dimension — rejects tiny/blurry uploads. */
+const MIN_SOURCE_PX = 200;
+
 /** Resize + center-crop an image file to a square data URL (keeps stored avatar small). */
 async function fileToAvatarDataUrl(file: File, size = 256): Promise<string> {
   const bitmap = await createImageBitmap(file);
+  if (Math.min(bitmap.width, bitmap.height) < MIN_SOURCE_PX) {
+    throw new Error(`Image is too small — use at least ${MIN_SOURCE_PX}×${MIN_SOURCE_PX}px.`);
+  }
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
@@ -35,6 +41,11 @@ export default function ProfilePage() {
   const [profileMsg, setProfileMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  const [emailInput, setEmailInput] = useState("");
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [emailVerifyUrl, setEmailVerifyUrl] = useState<string | null>(null);
+
   const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -49,9 +60,37 @@ export default function ProfilePage() {
         setMe(json.user);
         setName(json.user.name ?? "");
         setImage(json.user.image ?? null);
+        setEmailInput(json.user.email ?? "");
       }
     })();
   }, []);
+
+  async function changeEmail() {
+    setEmailMsg(null);
+    setEmailVerifyUrl(null);
+    const next = emailInput.trim().toLowerCase();
+    if (!next || next === (me?.email ?? "").toLowerCase()) {
+      setEmailMsg({ ok: false, text: "Enter a different email." });
+      return;
+    }
+    setSavingEmail(true);
+    const res = await fetch("/api/profile/email", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: next })
+    });
+    const json = (await res.json().catch(() => null)) as
+      | { message?: string; fallbackVerificationUrl?: string }
+      | null;
+    setSavingEmail(false);
+    if (!res.ok) {
+      setEmailMsg({ ok: false, text: json?.message ?? "Could not update email." });
+      return;
+    }
+    setMe((m) => (m ? { ...m, email: next } : m));
+    setEmailMsg({ ok: true, text: json?.message ?? "Email updated. Verify the new address." });
+    if (json?.fallbackVerificationUrl) setEmailVerifyUrl(json.fallbackVerificationUrl);
+  }
 
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -65,8 +104,8 @@ export default function ProfilePage() {
       const dataUrl = await fileToAvatarDataUrl(file);
       setImage(dataUrl);
       setProfileMsg(null);
-    } catch {
-      setProfileMsg({ ok: false, text: "Could not read that image." });
+    } catch (err) {
+      setProfileMsg({ ok: false, text: err instanceof Error ? err.message : "Could not read that image." });
     }
   }
 
@@ -167,15 +206,6 @@ export default function ProfilePage() {
                 placeholder="Your name"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Email</label>
-              <input
-                className="mt-1 w-full rounded-lg border bg-zinc-50 px-3 py-2 text-sm text-zinc-500"
-                value={me?.email ?? ""}
-                readOnly
-              />
-              <p className="mt-1 text-xs text-zinc-500">Email is your sign-in ID and can’t be changed here.</p>
-            </div>
           </div>
 
           {profileMsg ? (
@@ -190,6 +220,46 @@ export default function ProfilePage() {
               className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
             >
               {savingProfile ? "Saving..." : "Save changes"}
+            </button>
+          </div>
+        </div>
+
+        {/* Email card */}
+        <div className="mt-6 rounded-xl border bg-white p-5">
+          <div className="text-lg font-semibold">Email address</div>
+          <p className="mt-1 text-sm text-zinc-600">
+            Your email is your sign-in ID. Changing it requires verifying the new address.
+          </p>
+          <div className="mt-4">
+            <label className="text-sm font-medium">Email</label>
+            <input
+              type="email"
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              autoCapitalize="none"
+              autoCorrect="off"
+            />
+          </div>
+          {emailMsg ? (
+            <div className={`mt-3 text-sm ${emailMsg.ok ? "text-emerald-700" : "text-red-600"}`}>{emailMsg.text}</div>
+          ) : null}
+          {emailVerifyUrl ? (
+            <a
+              href={emailVerifyUrl}
+              className="mt-3 inline-flex rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-600"
+            >
+              Verify new email
+            </a>
+          ) : null}
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={changeEmail}
+              disabled={savingEmail || !emailInput.trim() || emailInput.trim().toLowerCase() === (me?.email ?? "").toLowerCase()}
+              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+            >
+              {savingEmail ? "Updating..." : "Update email"}
             </button>
           </div>
         </div>

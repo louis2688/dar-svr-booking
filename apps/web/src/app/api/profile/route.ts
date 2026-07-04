@@ -6,14 +6,17 @@ import { prisma } from "@/server/db";
 
 export const runtime = "nodejs";
 
-/** ~350KB cap on the stored data URL (client resizes to ~256px before upload). */
-const MAX_IMAGE_CHARS = 350_000;
+/** Cap on the stored data URL. A 256px JPEG avatar is ~15-40KB; 200KB leaves headroom
+    while rejecting oversized/unresized uploads. */
+const MAX_IMAGE_CHARS = 200_000;
+const MIN_IMAGE_CHARS = 200; // reject empty/garbage "images"
 
 const ProfileSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(120).optional(),
   // data:image/...;base64,....  or null to remove the avatar.
   image: z
     .string()
+    .min(MIN_IMAGE_CHARS, "Image data looks invalid.")
     .max(MAX_IMAGE_CHARS, "Image is too large. Use a smaller photo.")
     .regex(/^data:image\/(png|jpe?g|webp);base64,/, "Unsupported image format.")
     .nullable()

@@ -22,15 +22,16 @@ export async function resolveSessionDbUser(): Promise<
   | { ok: false; status: 401; message: string }
 > {
   const session = await getServerSession(authOptions);
+  // Prefer the stable userId (survives an email change); fall back to email.
+  const userId = session?.userId;
   const email = session?.user?.email?.toLowerCase().trim();
-  if (!email) {
+  if (!userId && !email) {
     return { ok: false, status: 401, message: "Unauthorized." };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, role: true }
-  });
+  const user = userId
+    ? await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } })
+    : await prisma.user.findUnique({ where: { email: email! }, select: { id: true, role: true } });
 
   if (!user) {
     return {
