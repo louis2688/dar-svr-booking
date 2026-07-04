@@ -6,6 +6,10 @@ import { formatBookingTimeLabel } from "@svr/shared";
 
 import { formatManilaDateTime } from "@/server/time";
 
+/** Fixed office signatories on the printed vehicle request form. */
+const APPROVER = { name: "JOHN PAOLO M. LLANES", position: "Administrative Officer IV" };
+const NOTED_BY = { name: "ROSAVILLA M. DAVALOS, JD", position: "Chief Administrative Officer" };
+
 export type PrintableBookingRequest = {
   controlNo: string;
   status: BookingStatus;
@@ -129,21 +133,19 @@ export function BookingPrintDocument(props: { req: PrintableBookingRequest }) {
             </div>
             <div className="text-xs text-zinc-500">
               Approved by
-              <div className="mt-10 border-t pt-2 text-sm font-semibold text-zinc-900">
-                {req.decidedByName ? req.decidedByName : " "}
+              <div className="mt-10 border-t pt-2 text-sm font-semibold uppercase text-zinc-900">
+                {APPROVER.name}
               </div>
-              <div className="text-[11px] font-normal text-zinc-500">
-                {req.decidedByName ? "Signature over printed name" : "Pending approval"}
-              </div>
+              <div className="text-[11px] font-normal text-zinc-500">{APPROVER.position}</div>
             </div>
           </div>
 
           <div className="mt-8 max-w-[280px] text-xs text-zinc-500">
             Noted by
-            <div className="mt-10 border-t pt-2 text-sm font-semibold text-zinc-900">
-              {req.notedBy ? req.notedBy : " "}
+            <div className="mt-10 border-t pt-2 text-sm font-semibold uppercase text-zinc-900">
+              {NOTED_BY.name}
             </div>
-            <div className="text-[11px] font-normal text-zinc-500">Signature over printed name</div>
+            <div className="text-[11px] font-normal text-zinc-500">{NOTED_BY.position}</div>
           </div>
 
           <div className="mt-8 text-xs text-zinc-500">
