@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-import { AppHeader } from "@/components/AppHeader";
+import { AppShell } from "@/components/dashboard/AppShell";
 import { MobileOpeningSplash } from "@/components/MobileOpeningSplash";
 
 const geistSans = Geist({
@@ -36,8 +36,7 @@ export default function RootLayout({
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         <Providers>
           <MobileOpeningSplash />
-          <AppHeader />
-          {children}
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>
