@@ -37,7 +37,8 @@ export default async function UserPrintRequestPage(props: { params: Promise<{ id
         createdAt: req.createdAt,
         vehicle: req.vehicle,
         passengers: req.passengers.map((p) => ({ fullName: p.fullName })),
-        decidedByName: req.decidedBy?.name ?? req.decidedBy?.email ?? null
+        decidedByName: req.decidedBy?.name ?? req.decidedBy?.email ?? null,
+        notedBy: req.notedBy
       }}
     />
   );

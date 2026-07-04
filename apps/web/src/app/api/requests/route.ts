@@ -93,6 +93,7 @@ export async function POST(req: Request) {
             purpose: input.purpose,
             timeText: input.timeText,
             requestorName: input.requestorName,
+            notedBy: input.notedBy ?? null,
             status: "PENDING",
             requestedById: resolvedUser.userId,
             passengers: {

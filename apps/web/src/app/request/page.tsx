@@ -54,6 +54,7 @@ export default function RequestPage() {
   const [purpose, setPurpose] = useState("");
   const [timeText, setTimeText] = useState("");
   const [requestorName, setRequestorName] = useState("");
+  const [notedBy, setNotedBy] = useState("");
   const [passengersText, setPassengersText] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -190,6 +191,7 @@ export default function RequestPage() {
         purpose,
         timeText: timeText || undefined,
         requestorName,
+        notedBy: notedBy.trim() || undefined,
         passengers
       })
     });
@@ -462,6 +464,15 @@ export default function RequestPage() {
                   value={timeText}
                   onChange={(e) => setTimeText(e.target.value)}
                   placeholder="e.g., 8:00 AM - 5:00 PM"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Noted by (optional)</label>
+                <input
+                  className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                  value={notedBy}
+                  onChange={(e) => setNotedBy(e.target.value)}
+                  placeholder="Name of endorser / immediate supervisor"
                 />
               </div>
               <div>

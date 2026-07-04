@@ -20,6 +20,8 @@ export type PrintableBookingRequest = {
   passengers: { fullName: string }[];
   /** Name of the admin who approved/decided; null while pending. */
   decidedByName?: string | null;
+  /** Optional endorser name printed under the signature blocks. */
+  notedBy?: string | null;
 };
 
 export function BookingPrintDocument(props: { req: PrintableBookingRequest }) {
@@ -50,7 +52,7 @@ export function BookingPrintDocument(props: { req: PrintableBookingRequest }) {
       <div className="paper mx-auto max-w-3xl rounded-xl border bg-white p-8 shadow-sm">
         <div className="flex items-start justify-between gap-6">
           <div>
-            <div className="text-xs uppercase tracking-wide text-zinc-500">Service Vehicle Request</div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Control Number</div>
             <div className="mt-1 text-2xl font-semibold">{req.controlNo}</div>
           </div>
           <div className="text-right text-sm">
@@ -136,7 +138,15 @@ export function BookingPrintDocument(props: { req: PrintableBookingRequest }) {
             </div>
           </div>
 
-          <div className="mt-2 text-xs text-zinc-500">
+          <div className="mt-8 max-w-[280px] text-xs text-zinc-500">
+            Noted by
+            <div className="mt-10 border-t pt-2 text-sm font-semibold text-zinc-900">
+              {req.notedBy ? req.notedBy : " "}
+            </div>
+            <div className="text-[11px] font-normal text-zinc-500">Signature over printed name</div>
+          </div>
+
+          <div className="mt-8 text-xs text-zinc-500">
             Status: <span className="font-medium text-zinc-900">{req.status}</span>
           </div>
         </div>

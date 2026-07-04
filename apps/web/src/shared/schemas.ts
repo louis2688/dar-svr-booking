@@ -18,6 +18,7 @@ export const CreateRequestSchema = z
     purpose: z.string().min(1).max(500),
     timeText: z.string().max(100).optional(),
     requestorName: z.string().min(1).max(120),
+    notedBy: z.string().max(120).optional(),
     passengers: z.array(z.string().min(1).max(120)).default([])
   })
   .superRefine((data, ctx) => {

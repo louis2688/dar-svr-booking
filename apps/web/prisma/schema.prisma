@@ -114,6 +114,8 @@ model BookingRequest {
   purpose       String
   timeText      String?
   requestorName String
+  /// Optional "Noted by" endorser name, printed on the form.
+  notedBy       String?
 
   status        BookingStatus @default(PENDING)
   adminNotes    String?
