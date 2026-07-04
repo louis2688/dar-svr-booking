@@ -6,11 +6,42 @@ import { signOut, useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 
 const COLLAPSE_KEY = "svr-sidebar-collapsed";
+const THEME_KEY = "svr-theme";
 
 function Icon(props: { d: string }) {
   return (
     <svg width={20} height={20} viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">
       <path fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" d={props.d} />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg width={19} height={19} viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">
+      <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" strokeWidth={1.8} />
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.55 1.55M18.25 18.25l1.55 1.55M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.55-1.55M18.25 5.75l1.55-1.55"
+      />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg width={19} height={19} viewBox="0 0 24 24" aria-hidden="true" className="shrink-0">
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M20.5 14.5a8.5 8.5 0 1 1-9-11 6.7 6.7 0 0 0 9 11Z"
+      />
     </svg>
   );
 }
@@ -52,12 +83,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     try {
       setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
+      setDark(localStorage.getItem(THEME_KEY) === "dark");
     } catch {
       /* localStorage unavailable */
     }
@@ -88,6 +121,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const next = !v;
       try {
         localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
+
+  function toggleDark() {
+    setDark((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(THEME_KEY, next ? "dark" : "light");
       } catch {
         /* ignore */
       }
@@ -138,7 +183,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-dvh bg-zinc-50">
+    <div className={["flex min-h-dvh bg-zinc-50", mounted && dark ? "dark" : ""].join(" ")}>
       {/* Desktop sidebar — persistent + collapsible */}
       <aside
         className={[
@@ -252,18 +297,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">{titleFor(pathname)}</h1>
           </div>
-          <Link href="/profile" className="flex shrink-0 items-center gap-2 rounded-full sm:gap-3" aria-label="Profile settings">
-            <span className="hidden max-w-[180px] truncate text-sm text-zinc-600 sm:inline">
-              {displayName || email}
-            </span>
-            {avatar ? (
-              <img src={avatar} alt="" className="h-8 w-8 rounded-full object-cover sm:h-9 sm:w-9" />
-            ) : (
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-700 text-sm font-bold text-white sm:h-9 sm:w-9">
-                {(displayName || email || "?").slice(0, 1).toUpperCase()}
+          <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+            <button
+              type="button"
+              onClick={toggleDark}
+              aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+              title={dark ? "Switch to light mode" : "Switch to dark mode"}
+              className="rounded-lg p-2 text-zinc-600 hover:bg-zinc-100"
+            >
+              {mounted && dark ? <SunIcon /> : <MoonIcon />}
+            </button>
+            <Link href="/profile" className="flex items-center gap-2 rounded-full" aria-label="Profile settings">
+              <span className="hidden max-w-[180px] truncate text-sm text-zinc-600 sm:inline">
+                {displayName || email}
               </span>
-            )}
-          </Link>
+              {avatar ? (
+                <img src={avatar} alt="" className="h-8 w-8 rounded-full object-cover sm:h-9 sm:w-9" />
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-700 text-sm font-bold text-white sm:h-9 sm:w-9">
+                  {(displayName || email || "?").slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </Link>
+          </div>
         </header>
 
         <main className="min-w-0 flex-1">{children}</main>
