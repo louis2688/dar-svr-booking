@@ -4,8 +4,6 @@ import type { BookingStatus } from "@prisma/client";
 
 import { formatBookingTimeLabel } from "@svr/shared";
 
-import { formatManilaDateTime } from "@/server/time";
-
 /** Fixed office signatories on the printed vehicle request form. */
 const APPROVER = { name: "JOHN PAOLO M. LLANES", position: "Administrative Officer IV" };
 const NOTED_BY = { name: "ROSAVILLA M. DAVALOS, JD", position: "Chief Administrative Officer" };
@@ -28,103 +26,114 @@ export type PrintableBookingRequest = {
   notedBy?: string | null;
 };
 
-/** One request form. Two of these stack on a single 8.5x13 (Folio) sheet. */
+/** Split a "8:00 AM - 5:00 PM" travel window into FROM / TO parts. */
+function splitTimeWindow(timeText: string | null | undefined, fallbackFrom: string) {
+  const raw = (timeText ?? "").trim();
+  if (raw) {
+    const parts = raw.split(/\s*[-–—]\s*|\s+to\s+/i);
+    if (parts.length >= 2) return { from: parts[0].trim(), to: parts.slice(1).join(" ").trim() };
+    return { from: raw, to: "" };
+  }
+  return { from: fallbackFrom, to: "" };
+}
+
+function Line({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
+  return (
+    <span className={`min-w-0 flex-1 border-b border-zinc-900 px-1 text-center font-medium ${className}`}>
+      {children || " "}
+    </span>
+  );
+}
+
+/** One copy of the official REQUEST OF VEHICLE form. Two stack on an 8.5x13 sheet. */
 function FormCopy({ req }: { req: PrintableBookingRequest }) {
   const tripDate = req.date.toISOString().slice(0, 10);
-  const createdAtText = formatManilaDateTime(req.createdAt);
+  const plateNo = req.vehicle?.plateNo ?? "";
+  const { from, to } = splitTimeWindow(req.timeText, formatBookingTimeLabel(req.startTime));
 
   return (
-    <div className="form-copy">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="text-[10px] uppercase tracking-wide text-zinc-500">Control Number</div>
-          <div className="mt-0.5 text-xl font-semibold">{req.controlNo}</div>
+    <div className="form-copy text-[11px] leading-tight text-zinc-900">
+      {/* Office header */}
+      <div className="text-center">
+        <div>Department of Agrarian Reform</div>
+        <div className="font-bold">PROVINCIAL AGRARIAN REFORM OFFICE</div>
+        <div>Tanza, Boac, Marinduque</div>
+        <div className="mt-2 font-bold tracking-wide">REQUEST OF VEHICLE</div>
+      </div>
+
+      {/* Control No + Date (right) */}
+      <div className="mt-2 flex justify-end">
+        <div className="text-right">
+          <div>
+            Control No.: <span className="font-medium underline underline-offset-2">{req.controlNo}</span>
+          </div>
+          <div className="ml-auto mt-6 w-52 border-t border-zinc-900" />
+          <div className="text-[10px]">Date</div>
         </div>
-        <div className="text-right text-xs leading-5">
-          <div>
-            <span className="text-zinc-500">Trip date:</span>{" "}
-            <span className="font-medium">{tripDate}</span>
-          </div>
-          <div>
-            <span className="text-zinc-500">Start time:</span>{" "}
-            <span className="font-medium">{formatBookingTimeLabel(req.startTime)}</span>
-          </div>
-          <div>
-            <span className="text-zinc-500">Created:</span>{" "}
-            <span className="font-medium">{createdAtText}</span>
+      </div>
+
+      {/* Requestor */}
+      <div className="mt-1">
+        <div className="font-bold">{req.requestorName}</div>
+      </div>
+
+      {/* Request sentence */}
+      <div className="mt-2 flex flex-wrap items-end gap-x-1 leading-6">
+        <span>It is requested that I be allowed to use the service vehicle with Plate No.</span>
+        <span className="inline-block min-w-[90px] border-b border-zinc-900 px-1 text-center font-medium">
+          {plateNo || " "}
+        </span>
+        <span>on</span>
+        <span className="inline-block min-w-[90px] border-b border-zinc-900 px-1 text-center font-medium">
+          {tripDate}
+        </span>
+        <span>.</span>
+      </div>
+
+      {/* Fields */}
+      <div className="mt-3 space-y-1.5">
+        <div className="flex items-end gap-2">
+          <div className="w-24 shrink-0 font-medium">DESTINATION:</div>
+          <Line>{req.destination}</Line>
+        </div>
+        <div className="flex items-end gap-2">
+          <div className="w-24 shrink-0 font-medium">PURPOSE&nbsp;&nbsp;&nbsp;&nbsp;:</div>
+          <Line>{req.purpose}</Line>
+        </div>
+        <div className="flex items-end gap-2">
+          <div className="w-24 shrink-0 font-medium">TIME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</div>
+          <div className="flex min-w-0 flex-1 items-end gap-2">
+            <span>FROM:</span>
+            <Line>{from}</Line>
+            <span>TO:</span>
+            <Line>{to}</Line>
           </div>
         </div>
       </div>
 
-      <div className="mt-3 grid gap-2.5 text-sm">
-        <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-2">
-            <div className="text-[10px] text-zinc-500">Vehicle</div>
-            <div className="font-medium">
-              {req.vehicle
-                ? `${req.vehicle.name}${req.vehicle.plateNo ? ` (${req.vehicle.plateNo})` : ""}`
-                : "To be assigned by admin"}
-            </div>
-          </div>
-          <div>
-            <div className="text-[10px] text-zinc-500">Requestor</div>
-            <div className="font-medium">{req.requestorName}</div>
+      {/* Signature of employee (right) */}
+      <div className="mt-8 flex justify-end">
+        <div className="text-center text-[10px]">
+          <div className="ml-auto w-56 border-t border-zinc-900" />
+          <div className="mt-0.5">
+            Signature of Employee Above
+            <br />
+            Printed Name
           </div>
         </div>
+      </div>
 
+      {/* Approved by / Noted by */}
+      <div className="mt-4 grid grid-cols-2 gap-8">
         <div>
-          <div className="text-[10px] text-zinc-500">Destination</div>
-          <div className="font-medium">{req.destination}</div>
+          <div>Approved by:</div>
+          <div className="mt-7 font-bold uppercase">{APPROVER.name}</div>
+          <div className="text-[10px]">{APPROVER.position}</div>
         </div>
-
         <div>
-          <div className="text-[10px] text-zinc-500">Purpose of travel</div>
-          <div className="whitespace-pre-wrap font-medium">{req.purpose}</div>
-        </div>
-
-        {req.timeText ? (
-          <div>
-            <div className="text-[10px] text-zinc-500">Time</div>
-            <div className="font-medium">{req.timeText}</div>
-          </div>
-        ) : null}
-
-        <div>
-          <div className="text-[10px] text-zinc-500">Passengers</div>
-          {req.passengers.length ? (
-            <ol className="mt-0.5 list-decimal pl-5">
-              {req.passengers.map((p, idx) => (
-                <li key={`${p.fullName}-${idx}`} className="font-medium leading-5">
-                  {p.fullName}
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <div className="font-medium">—</div>
-          )}
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-6">
-          <div className="text-[10px] text-zinc-500">
-            Requested by
-            <div className="mt-7 border-t pt-1.5 text-sm font-semibold text-zinc-900">{req.requestorName}</div>
-            <div className="text-[9px] font-normal text-zinc-500">Signature over printed name</div>
-          </div>
-          <div className="text-[10px] text-zinc-500">
-            Approved by
-            <div className="mt-7 border-t pt-1.5 text-sm font-semibold uppercase text-zinc-900">{APPROVER.name}</div>
-            <div className="text-[9px] font-normal text-zinc-500">{APPROVER.position}</div>
-          </div>
-        </div>
-
-        <div className="mt-4 max-w-[280px] text-[10px] text-zinc-500">
-          Noted by
-          <div className="mt-7 border-t pt-1.5 text-sm font-semibold uppercase text-zinc-900">{NOTED_BY.name}</div>
-          <div className="text-[9px] font-normal text-zinc-500">{NOTED_BY.position}</div>
-        </div>
-
-        <div className="mt-3 text-[10px] text-zinc-500">
-          Status: <span className="font-medium text-zinc-900">{req.status}</span>
+          <div>Noted by:</div>
+          <div className="mt-7 font-bold uppercase">{NOTED_BY.name}</div>
+          <div className="text-[10px]">{NOTED_BY.position}</div>
         </div>
       </div>
     </div>
@@ -138,7 +147,7 @@ export function BookingPrintDocument(props: { req: PrintableBookingRequest }) {
     <div className="min-h-dvh bg-zinc-100 p-6 text-zinc-900">
       <style>{`
         /* Folio / long bond: 8.5in x 13in */
-        @page { size: 8.5in 13in; margin: 0.4in; }
+        @page { size: 8.5in 13in; margin: 0.5in; }
         @media print {
           .no-print { display: none !important; }
           html, body { background: white !important; }
@@ -148,7 +157,7 @@ export function BookingPrintDocument(props: { req: PrintableBookingRequest }) {
         }
       `}</style>
 
-      <div className="no-print mx-auto mb-4 flex max-w-[7.7in] items-center justify-between gap-2">
+      <div className="no-print mx-auto mb-4 flex max-w-[7.5in] items-center justify-between gap-2">
         <span className="text-xs text-zinc-500">Two copies per 8.5&quot; × 13&quot; (long/Folio) sheet.</span>
         <button
           className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
@@ -159,11 +168,11 @@ export function BookingPrintDocument(props: { req: PrintableBookingRequest }) {
         </button>
       </div>
 
-      {/* Sheet ~ printable area of an 8.5x13 page (minus margins). Two stacked copies. */}
-      <div className="sheet mx-auto w-[7.7in] max-w-full rounded-xl border bg-white p-[0.35in] shadow-sm">
+      {/* Printable area of an 8.5x13 page (minus 0.5in margins ≈ 7.5in). Two stacked copies. */}
+      <div className="sheet mx-auto w-[7.5in] max-w-full rounded-xl border bg-white p-[0.4in] shadow-sm">
         <FormCopy req={req} />
 
-        <div className="cut-line my-4 flex items-center gap-2 text-[9px] text-zinc-400">
+        <div className="cut-line my-5 flex items-center gap-2 text-[9px] text-zinc-400">
           <span className="h-px flex-1 border-t border-dashed border-zinc-300" />
           ✂ cut here
           <span className="h-px flex-1 border-t border-dashed border-zinc-300" />
