@@ -320,6 +320,13 @@ function LoginPageInner() {
   return (
     <div className="min-h-dvh bg-zinc-50 px-6 py-12 text-zinc-900">
       <div className="mx-auto max-w-sm rounded-xl border bg-white p-6">
+        <img
+          src="/branding/svr-logo.png"
+          alt="SVR Booking"
+          width={384}
+          height={256}
+          className="mx-auto mb-5 h-16 w-auto object-contain"
+        />
         {verifiedBanner ? (
           <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
             Email verified. You can sign in below.
