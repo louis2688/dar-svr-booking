@@ -19,13 +19,14 @@ const ICONS = {
   dashboard: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z",
   request: "M12 5v14M5 12h14",
   approvals: "M8 3v3M16 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 13l2 2 4-4",
-  vehicles: "M5 16l1.5-6A2 2 0 0 1 8.4 8h7.2a2 2 0 0 1 1.9 2l1.5 6M5 16h14M5 16a1.5 1.5 0 1 0 2 1.5M19 16a1.5 1.5 0 1 1-2 1.5M9 11h6"
+  vehicles: "M5 16l1.5-6A2 2 0 0 1 8.4 8h7.2a2 2 0 0 1 1.9 2l1.5 6M5 16h14M5 16a1.5 1.5 0 1 0 2 1.5M19 16a1.5 1.5 0 1 1-2 1.5M9 11h6",
+  profile: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20a8 8 0 0 1 16 0"
 } as const;
 
 /** Routes that render bare (no dashboard chrome). */
 function isBareRoute(pathname: string | null) {
   if (!pathname) return true;
-  if (pathname === "/login" || pathname.startsWith("/verify-email")) return true;
+  if (pathname === "/login" || pathname.startsWith("/verify-email") || pathname.startsWith("/reset-password")) return true;
   if (pathname.includes("/print")) return true;
   return false;
 }
@@ -43,6 +44,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data } = useSession();
   const role = (data as { role?: string } | null)?.role;
   const email = data?.user?.email ?? null;
+  const avatar = data?.user?.image ?? null;
+  const displayName = data?.user?.name ?? null;
   const pathname = usePathname();
   const router = useRouter();
 
@@ -73,6 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       base.push({ href: "/admin", label: "Approvals", icon: ICONS.approvals });
       base.push({ href: "/admin/vehicles", label: "Vehicles", icon: ICONS.vehicles });
     }
+    base.push({ href: "/profile", label: "Profile", icon: ICONS.profile });
     return base;
   }, [role]);
 
@@ -245,12 +249,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">{titleFor(pathname)}</h1>
           </div>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <span className="hidden max-w-[180px] truncate text-sm text-zinc-600 sm:inline">{email}</span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-700 text-sm font-bold text-white sm:h-9 sm:w-9">
-              {(email ?? "?").slice(0, 1).toUpperCase()}
+          <Link href="/profile" className="flex shrink-0 items-center gap-2 rounded-full sm:gap-3" aria-label="Profile settings">
+            <span className="hidden max-w-[180px] truncate text-sm text-zinc-600 sm:inline">
+              {displayName || email}
             </span>
-          </div>
+            {avatar ? (
+              <img src={avatar} alt="" className="h-8 w-8 rounded-full object-cover sm:h-9 sm:w-9" />
+            ) : (
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-700 text-sm font-bold text-white sm:h-9 sm:w-9">
+                {(displayName || email || "?").slice(0, 1).toUpperCase()}
+              </span>
+            )}
+          </Link>
         </header>
 
         <main className="min-w-0 flex-1">{children}</main>

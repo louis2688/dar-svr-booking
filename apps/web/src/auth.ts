@@ -46,6 +46,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name ?? undefined,
+          image: user.image ?? undefined,
           role: user.role,
           remember
         };
@@ -53,20 +54,35 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.userId = user.id;
         token.role = user.role;
+        token.name = user.name ?? null;
+        token.picture = user.image ?? null;
         const remember = Boolean(user.remember);
         token.remember = remember;
         const ttl = remember ? MAX_SESSION_SECONDS : BRIEF_SESSION_SECONDS;
         token.exp = Math.floor(Date.now() / 1000) + ttl;
+      }
+      // Live refresh after a profile save via useSession().update({ name, image }).
+      if (trigger === "update" && session) {
+        if (typeof (session as { name?: unknown }).name === "string") {
+          token.name = (session as { name: string }).name;
+        }
+        if ("image" in (session as object)) {
+          token.picture = (session as { image?: string | null }).image ?? null;
+        }
       }
       return token;
     },
     async session({ session, token }) {
       session.userId = token.userId;
       session.role = token.role;
+      if (session.user) {
+        session.user.name = (token.name as string | null) ?? undefined;
+        session.user.image = (token.picture as string | null) ?? undefined;
+      }
       return session;
     }
   }

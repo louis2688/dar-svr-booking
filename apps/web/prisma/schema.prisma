@@ -26,6 +26,8 @@ model User {
   passwordHash   String?
   emailVerified  DateTime?
   role           Role      @default(USER)
+  /// Avatar stored as a data URL (small, resized client-side). Null = use initials.
+  image          String?
 
   accounts Account[]
   sessions Session[]

@@ -31,6 +31,10 @@ function LoginPageInner() {
   const [showResend, setShowResend] = useState(false);
   /** Longer session + prefilled email next visit (password is never stored). */
   const [rememberMe, setRememberMe] = useState(false);
+  const [forgot, setForgot] = useState<{ open: boolean; note: string | null; resetUrl?: string }>({
+    open: false,
+    note: null
+  });
   const emailRef = useRef<HTMLInputElement | null>(null);
   const passwordRef = useRef<HTMLInputElement | null>(null);
 
@@ -62,6 +66,26 @@ function LoginPageInner() {
     if (next === "signin") {
       setConfirmPassword("");
     }
+  }
+
+  async function onForgotPassword() {
+    const nextEmail = (emailRef.current?.value ?? email).toLowerCase().trim();
+    if (!nextEmail) {
+      setForgot({ open: true, note: "Enter your email above first." });
+      return;
+    }
+    setForgot({ open: true, note: "Preparing reset link…" });
+    const res = await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: nextEmail })
+    });
+    const json = (await res.json().catch(() => ({}))) as { message?: string; resetUrl?: string };
+    setForgot({
+      open: true,
+      note: json.message ?? "If that email has an account, a reset link has been prepared.",
+      ...(typeof json.resetUrl === "string" ? { resetUrl: json.resetUrl } : {})
+    });
   }
 
   async function onResendVerification() {
@@ -388,7 +412,30 @@ function LoginPageInner() {
             {mode === "signup" ? (
               <p className="mt-1 text-xs text-zinc-500">At least 8 characters.</p>
             ) : null}
+            {mode === "signin" ? (
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                className="mt-2 text-xs font-medium text-emerald-700 hover:underline"
+              >
+                Forgot password?
+              </button>
+            ) : null}
           </div>
+
+          {mode === "signin" && forgot.open ? (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
+              {forgot.note ? <p className="text-emerald-900">{forgot.note}</p> : null}
+              {forgot.resetUrl ? (
+                <a
+                  href={forgot.resetUrl}
+                  className="mt-2 inline-flex w-full justify-center rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-600"
+                >
+                  Open reset link
+                </a>
+              ) : null}
+            </div>
+          ) : null}
 
           {mode === "signup" ? (
             <div>

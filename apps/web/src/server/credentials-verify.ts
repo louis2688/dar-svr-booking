@@ -6,7 +6,7 @@ import { prisma } from "@/server/db";
 export type CredentialsCheck =
   | { ok: false; reason: "invalid" }
   | { ok: false; reason: "unverified"; userId: string; email: string | null }
-  | { ok: true; user: Pick<User, "id" | "email" | "name" | "role"> };
+  | { ok: true; user: Pick<User, "id" | "email" | "name" | "role" | "image"> };
 
 /**
  * Validates password and whether the account may sign in with credentials.
@@ -28,6 +28,6 @@ export async function checkCredentials(emailRaw: string, password: string): Prom
 
   return {
     ok: true,
-    user: { id: user.id, email: user.email, name: user.name, role: user.role }
+    user: { id: user.id, email: user.email, name: user.name, role: user.role, image: user.image }
   };
 }
