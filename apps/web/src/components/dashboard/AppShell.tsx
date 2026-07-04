@@ -143,7 +143,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <img
             src="/branding/svr-logo.png"
             alt="SVR"
-            className={collapsed ? "h-8 w-auto max-w-full object-contain" : "h-10 w-auto object-contain"}
+            width={384}
+            height={256}
+            decoding="async"
+            className={collapsed ? "h-9 w-auto max-w-full object-contain" : "h-14 w-auto object-contain"}
           />
         </Link>
 
@@ -196,7 +199,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="absolute left-0 top-0 flex h-dvh w-64 max-w-[80%] flex-col border-r border-zinc-200 bg-white px-3 py-4 shadow-xl">
             <div className="flex items-center justify-between px-1">
               <Link href="/" className="flex items-center" onClick={() => setDrawerOpen(false)} aria-label="SVR Booking home">
-                <img src="/branding/svr-logo.png" alt="SVR" className="h-10 w-auto object-contain" />
+                <img src="/branding/svr-logo.png" alt="SVR" width={384} height={256} decoding="async" className="h-12 w-auto object-contain" />
               </Link>
               <button
                 type="button"
