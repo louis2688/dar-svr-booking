@@ -138,6 +138,16 @@ model BookingRequest {
   @@index([status])
 }
 
+/// Fixed office signatories shown on the printed form (Approved by / Noted by).
+model Signatory {
+  role      String   @id // "APPROVER" | "NOTED_BY"
+  name      String
+  position  String
+  /// Uploaded signature image as a data URL (transparent PNG ideal).
+  signature String?
+  updatedAt DateTime @updatedAt
+}
+
 model Passenger {
   id        String         @id @default(cuid())
   requestId String

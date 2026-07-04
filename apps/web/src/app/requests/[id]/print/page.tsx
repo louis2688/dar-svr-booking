@@ -10,10 +10,13 @@ export default async function UserPrintRequestPage(props: { params: Promise<{ id
   const userId = resolved.userId;
 
   const { id } = await props.params;
-  const req = await prisma.bookingRequest.findUnique({
-    where: { id },
-    include: { vehicle: true, passengers: true, decidedBy: { select: { name: true, email: true } } }
-  });
+  const [req, signatories] = await Promise.all([
+    prisma.bookingRequest.findUnique({
+      where: { id },
+      include: { vehicle: true, passengers: true, decidedBy: { select: { name: true, email: true } } }
+    }),
+    prisma.signatory.findMany()
+  ]);
 
   if (!req) {
     return <div className="p-6">Not found.</div>;
@@ -23,8 +26,13 @@ export default async function UserPrintRequestPage(props: { params: Promise<{ id
     return <div className="p-6">Forbidden.</div>;
   }
 
+  const approver = signatories.find((s) => s.role === "APPROVER") ?? null;
+  const noted = signatories.find((s) => s.role === "NOTED_BY") ?? null;
+
   return (
     <BookingPrintDocument
+      approver={approver}
+      noted={noted}
       req={{
         controlNo: req.controlNo,
         status: req.status,

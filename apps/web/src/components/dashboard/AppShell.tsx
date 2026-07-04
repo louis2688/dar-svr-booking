@@ -77,6 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (role === "ADMIN") {
       base.push({ href: "/admin", label: "Approvals", icon: ICONS.approvals });
       base.push({ href: "/admin/vehicles", label: "Vehicles", icon: ICONS.vehicles });
+      base.push({ href: "/admin/signatories", label: "Signatories", icon: ICONS.profile });
     }
     base.push({ href: "/profile", label: "Profile", icon: ICONS.profile });
     return base;
