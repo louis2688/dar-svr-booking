@@ -196,7 +196,12 @@ export default async function Home({
                 <BookingsSummaryFilters />
               </Suspense>
 
-              <BookingsTable rows={booked.map(toBookingRow)} emptyMessage={emptyMessage} />
+              <BookingsTable
+                rows={booked.map(toBookingRow)}
+                emptyMessage={emptyMessage}
+                currentUserId={session?.userId ?? null}
+                isAdmin={isAdmin}
+              />
               <p className="mt-3 text-xs text-zinc-500">Tip: click a row to view booking details.</p>
             </div>
     </div>

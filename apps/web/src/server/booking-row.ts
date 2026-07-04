@@ -12,6 +12,7 @@ type BookingWithVehicle = {
   destination: string;
   createdAt: Date;
   status: string;
+  requestedById: string | null;
   vehicle: { name: string; plateNo: string | null } | null;
 };
 
@@ -27,6 +28,7 @@ export function toBookingRow(b: BookingWithVehicle): BookingRow {
     requestorName: b.requestorName,
     destination: b.destination,
     createdLabel: formatManilaDateTime(b.createdAt),
-    status: b.status
+    status: b.status,
+    requestedById: b.requestedById
   };
 }

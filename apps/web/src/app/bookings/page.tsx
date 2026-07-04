@@ -86,7 +86,12 @@ export default async function BookingsPage({
           <Suspense fallback={<div className="h-[76px] animate-pulse rounded-lg bg-zinc-100 sm:h-[52px]" />}>
             <BookingsSummaryFilters defaultStatus="all" />
           </Suspense>
-          <BookingsTable rows={booked.map(toBookingRow)} emptyMessage="No bookings match the current filters." />
+          <BookingsTable
+            rows={booked.map(toBookingRow)}
+            emptyMessage="No bookings match the current filters."
+            currentUserId={session.userId}
+            isAdmin={isAdmin}
+          />
         </div>
       </div>
     </div>

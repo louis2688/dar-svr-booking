@@ -9,7 +9,9 @@ export type BookingStatus = z.infer<typeof BookingStatusSchema>;
 export const CreateRequestSchema = z
   .object({
     /** Admins may pre-assign a vehicle; user requests omit it (admin assigns at approval). */
-    vehicleId: z.string().min(1).optional(),
+    // optional (omitted): keep existing on edit / no vehicle on create.
+    // explicit null (edit only): admin clears an assigned vehicle.
+    vehicleId: z.string().min(1).optional().nullable(),
     date: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD"),
