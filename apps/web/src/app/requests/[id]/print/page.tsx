@@ -12,7 +12,7 @@ export default async function UserPrintRequestPage(props: { params: Promise<{ id
   const { id } = await props.params;
   const req = await prisma.bookingRequest.findUnique({
     where: { id },
-    include: { vehicle: true, passengers: true }
+    include: { vehicle: true, passengers: true, decidedBy: { select: { name: true, email: true } } }
   });
 
   if (!req) {
@@ -36,7 +36,8 @@ export default async function UserPrintRequestPage(props: { params: Promise<{ id
         requestorName: req.requestorName,
         createdAt: req.createdAt,
         vehicle: req.vehicle,
-        passengers: req.passengers.map((p) => ({ fullName: p.fullName }))
+        passengers: req.passengers.map((p) => ({ fullName: p.fullName })),
+        decidedByName: req.decidedBy?.name ?? req.decidedBy?.email ?? null
       }}
     />
   );

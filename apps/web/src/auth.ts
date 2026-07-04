@@ -42,11 +42,13 @@ export const authOptions: NextAuthOptions = {
         }
 
         const user = result.user;
+        // Deliberately omit `image` here: NextAuth would copy it into token.picture
+        // (a cookie), and a data-URL avatar overflows request headers (HTTP 431).
+        // The avatar is loaded from the DB in the session callback instead.
         return {
           id: user.id,
           email: user.email,
           name: user.name ?? undefined,
-          image: user.image ?? undefined,
           role: user.role,
           remember
         };
@@ -55,6 +57,9 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user, trigger, session }) {
+      // Never let an avatar ride in the JWT cookie (HTTP 431). Strip it on every pass,
+      // which also shrinks any previously-issued oversized token on its next request.
+      if ("picture" in token) delete (token as { picture?: unknown }).picture;
       if (user) {
         token.userId = user.id;
         token.role = user.role;

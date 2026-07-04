@@ -18,6 +18,8 @@ export type PrintableBookingRequest = {
   createdAt: Date;
   vehicle: { name: string; plateNo?: string | null } | null;
   passengers: { fullName: string }[];
+  /** Name of the admin who approved/decided; null while pending. */
+  decidedByName?: string | null;
 };
 
 export function BookingPrintDocument(props: { req: PrintableBookingRequest }) {
@@ -115,14 +117,22 @@ export function BookingPrintDocument(props: { req: PrintableBookingRequest }) {
             )}
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-6">
-            <div className="border-t pt-2 text-xs text-zinc-500">
+          <div className="mt-8 grid grid-cols-2 gap-6">
+            <div className="text-xs text-zinc-500">
               Requested by
-              <div className="mt-8 text-sm font-medium text-zinc-900">Signature</div>
+              <div className="mt-10 border-t pt-2 text-sm font-semibold text-zinc-900">
+                {req.requestorName}
+              </div>
+              <div className="text-[11px] font-normal text-zinc-500">Signature over printed name</div>
             </div>
-            <div className="border-t pt-2 text-xs text-zinc-500">
+            <div className="text-xs text-zinc-500">
               Approved by
-              <div className="mt-8 text-sm font-medium text-zinc-900">Signature</div>
+              <div className="mt-10 border-t pt-2 text-sm font-semibold text-zinc-900">
+                {req.decidedByName ? req.decidedByName : " "}
+              </div>
+              <div className="text-[11px] font-normal text-zinc-500">
+                {req.decidedByName ? "Signature over printed name" : "Pending approval"}
+              </div>
             </div>
           </div>
 
