@@ -6,11 +6,11 @@ import { Suspense } from "react";
 
 import { BookingsSummaryFilters } from "@/components/BookingsSummaryFilters";
 import { BookingsChart } from "@/components/dashboard/BookingsChart";
+import { BookingsTable } from "@/components/dashboard/BookingsTable";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { authOptions } from "@/auth";
 import { prisma } from "@/server/db";
-import { formatManilaDateTime } from "@/server/time";
-import { formatBookingTimeLabel } from "@svr/shared";
+import { toBookingRow } from "@/server/booking-row";
 
 function parseSummaryStatus(raw: string | undefined): BookingStatus | undefined {
   if (raw === undefined || raw === "") return "APPROVED";
@@ -21,12 +21,6 @@ function parseSummaryStatus(raw: string | undefined): BookingStatus | undefined 
   return "APPROVED";
 }
 
-const STATUS_CHIP: Record<string, string> = {
-  PENDING: "bg-amber-50 text-amber-800 border-amber-200",
-  APPROVED: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  REJECTED: "bg-red-50 text-red-700 border-red-200",
-  CANCELLED: "bg-zinc-100 text-zinc-700 border-zinc-200"
-};
 
 /** Weekly counts (oldest → newest) for the sparkline + week-over-week delta. */
 function weeklySeries(rows: { createdAt: Date; status: BookingStatus }[], status: BookingStatus, weeks = 8) {
@@ -202,67 +196,8 @@ export default async function Home({
                 <BookingsSummaryFilters />
               </Suspense>
 
-              <div className="mt-4 overflow-x-auto">
-                <table className="min-w-[900px] w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-zinc-50 text-left text-xs text-zinc-500">
-                      <th className="rounded-l-lg px-3 py-2.5 font-medium">Control no</th>
-                      <th className="px-3 py-2.5 font-medium">Vehicle</th>
-                      <th className="px-3 py-2.5 font-medium">Trip date</th>
-                      <th className="px-3 py-2.5 font-medium">Start time</th>
-                      <th className="px-3 py-2.5 font-medium">Requestor</th>
-                      <th className="px-3 py-2.5 font-medium">Destination</th>
-                      <th className="px-3 py-2.5 font-medium">Created</th>
-                      <th className="rounded-r-lg px-3 py-2.5 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {booked.length === 0 ? (
-                      <tr className="border-t">
-                        <td className="px-3 py-4 text-zinc-600" colSpan={8}>
-                          {emptyMessage}
-                        </td>
-                      </tr>
-                    ) : (
-                      booked.map((b) => (
-                        <tr key={b.id} className="border-t border-zinc-100">
-                          <td className="px-3 py-3 font-semibold">{b.controlNo}</td>
-                          <td className="px-3 py-3">
-                            {b.vehicle ? (
-                              <span className="inline-flex items-center gap-1.5">
-                                {b.vehicle.name}
-                                {b.vehicle.plateNo ? (
-                                  <span className="rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[11px] font-medium text-zinc-600">
-                                    {b.vehicle.plateNo}
-                                  </span>
-                                ) : null}
-                              </span>
-                            ) : (
-                              <span className="text-zinc-400">Unassigned</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-3">{b.date.toISOString().slice(0, 10)}</td>
-                          <td className="px-3 py-3">{formatBookingTimeLabel(b.startTime)}</td>
-                          <td className="px-3 py-3">{b.requestorName}</td>
-                          <td className="px-3 py-3">{b.destination}</td>
-                          <td className="whitespace-nowrap px-3 py-3 text-zinc-500">{formatManilaDateTime(b.createdAt)}</td>
-                          <td className="px-3 py-3">
-                            <span
-                              className={[
-                                "inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
-                                STATUS_CHIP[b.status] ?? "bg-zinc-100 text-zinc-700 border-zinc-200"
-                              ].join(" ")}
-                            >
-                              {b.status.charAt(0)}
-                              {b.status.slice(1).toLowerCase()}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <BookingsTable rows={booked.map(toBookingRow)} emptyMessage={emptyMessage} />
+              <p className="mt-3 text-xs text-zinc-500">Tip: click a row to view booking details.</p>
             </div>
     </div>
   );

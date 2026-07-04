@@ -20,6 +20,7 @@ const ICONS = {
   request: "M12 5v14M5 12h14",
   approvals: "M8 3v3M16 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 13l2 2 4-4",
   vehicles: "M5 16l1.5-6A2 2 0 0 1 8.4 8h7.2a2 2 0 0 1 1.9 2l1.5 6M5 16h14M5 16a1.5 1.5 0 1 0 2 1.5M19 16a1.5 1.5 0 1 1-2 1.5M9 11h6",
+  bookings: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
   profile: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20a8 8 0 0 1 16 0"
 } as const;
 
@@ -70,6 +71,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const items = useMemo(() => {
     const base: { href: string; label: string; icon: string }[] = [
       { href: "/", label: "Dashboard", icon: ICONS.dashboard },
+      { href: "/bookings", label: "Bookings", icon: ICONS.bookings },
       { href: "/request", label: "New Request", icon: ICONS.request }
     ];
     if (role === "ADMIN") {

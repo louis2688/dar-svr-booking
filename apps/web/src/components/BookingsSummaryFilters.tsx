@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 const STATUS_OPTIONS = [
@@ -11,20 +11,21 @@ const STATUS_OPTIONS = [
   { value: "CANCELLED", label: "Cancelled" }
 ] as const;
 
-export function BookingsSummaryFilters() {
+export function BookingsSummaryFilters({ defaultStatus = "APPROVED" }: { defaultStatus?: "APPROVED" | "all" }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
 
   const rawStatus = searchParams.get("status");
   const statusValue =
     rawStatus === null || rawStatus === ""
-      ? "APPROVED"
+      ? defaultStatus
       : rawStatus === "all"
         ? "all"
         : ["PENDING", "APPROVED", "REJECTED", "CANCELLED"].includes(rawStatus)
           ? rawStatus
-          : "APPROVED";
+          : defaultStatus;
 
   const qFromUrl = searchParams.get("q") ?? "";
   const [searchDraft, setSearchDraft] = useState(qFromUrl);
@@ -48,13 +49,13 @@ export function BookingsSummaryFilters() {
   const pushParams = (next: URLSearchParams) => {
     const s = next.toString();
     startTransition(() => {
-      router.replace(s ? `?${s}` : "/", { scroll: false });
+      router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
     });
   };
 
   const onStatusChange = (value: string) => {
     const next = new URLSearchParams(searchParams.toString());
-    if (value === "APPROVED") {
+    if (value === defaultStatus) {
       next.delete("status");
     } else {
       next.set("status", value);
