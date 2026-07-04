@@ -59,7 +59,29 @@ body {
     radial-gradient(1100px 520px at 12% -8%, rgb(18 137 74 / 0.06), transparent 60%),
     radial-gradient(900px 480px at 108% 4%, rgb(18 137 74 / 0.05), transparent 55%),
     linear-gradient(180deg, #f8faf8 0%, #f4f6f4 100%);
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-size: cover, cover, cover;
+  background-position: center, center, center;
+  background-attachment: fixed, fixed, fixed;
   animation: svr-fade-in 0.5s var(--ease-out) both;
+}
+
+/* ---------- DAR watermark: centered at 100% of the content column's own
+   width (sidebar excluded), not the full page. A ::before layer (rather than
+   the element's own background) lets us dial opacity in CSS on top of the
+   10%-opacity source SVG -- 0.5 here nets ~5% effective. */
+.flex.min-w-0.flex-1.flex-col {
+  position: relative;
+}
+
+.flex.min-w-0.flex-1.flex-col::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: url("/branding/DAR_grayscale_10pct.svg") center center / 100% auto no-repeat;
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 /* ---------- Cards: hairline border, soft shadow, quiet lift ---------- */
