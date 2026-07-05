@@ -11,7 +11,14 @@ const STATUS_OPTIONS = [
   { value: "CANCELLED", label: "Cancelled" }
 ] as const;
 
-export function BookingsSummaryFilters({ defaultStatus = "APPROVED" }: { defaultStatus?: "APPROVED" | "all" }) {
+export function BookingsSummaryFilters({
+  defaultStatus = "APPROVED",
+  withSort = false
+}: {
+  defaultStatus?: "APPROVED" | "all";
+  /** Show sort + per-page controls (the /bookings page honors these params). */
+  withSort?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -60,6 +67,18 @@ export function BookingsSummaryFilters({ defaultStatus = "APPROVED" }: { default
     } else {
       next.set("status", value);
     }
+    next.delete("page"); // filter change -> back to page 1
+    pushParams(next);
+  };
+
+  const onParamChange = (key: "sort" | "per", value: string, defaultValue: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (value === defaultValue) {
+      next.delete(key);
+    } else {
+      next.set(key, value);
+    }
+    next.delete("page");
     pushParams(next);
   };
 
@@ -78,6 +97,7 @@ export function BookingsSummaryFilters({ defaultStatus = "APPROVED" }: { default
       } else {
         next.set("q", trimmed);
       }
+      next.delete("page"); // search change -> back to page 1
       pushParams(next);
     }, 320);
   };
@@ -114,6 +134,44 @@ export function BookingsSummaryFilters({ defaultStatus = "APPROVED" }: { default
           }}
         />
       </label>
+      {withSort ? (
+        <>
+          <label className="flex min-w-[150px] flex-col gap-1 text-sm">
+            <span className="text-zinc-600">Sort</span>
+            <select
+              className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300 disabled:opacity-60"
+              value={
+                ["oldest", "requestor", "destination", "status"].includes(searchParams.get("sort") ?? "")
+                  ? (searchParams.get("sort") as string)
+                  : "recent"
+              }
+              disabled={pending}
+              onChange={(e) => onParamChange("sort", e.target.value, "recent")}
+            >
+              <option value="recent">Most recent</option>
+              <option value="oldest">Oldest first</option>
+              <option value="requestor">Requestor (A–Z)</option>
+              <option value="destination">Destination (A–Z)</option>
+              <option value="status">Status</option>
+            </select>
+          </label>
+          <label className="flex min-w-[110px] flex-col gap-1 text-sm">
+            <span className="text-zinc-600">Per page</span>
+            <select
+              className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300 disabled:opacity-60"
+              value={searchParams.get("per") ?? "10"}
+              disabled={pending}
+              onChange={(e) => onParamChange("per", e.target.value, "10")}
+            >
+              {["5", "10", "15", "25", "50"].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
+      ) : null}
     </div>
   );
 }

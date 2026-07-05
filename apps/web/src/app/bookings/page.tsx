@@ -15,10 +15,12 @@ function parseStatus(raw: string | undefined): BookingStatus | undefined {
   return undefined;
 }
 
+const PER_PAGE_OPTIONS = [5, 10, 15, 25, 50];
+
 export default async function BookingsPage({
   searchParams
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; sort?: string; per?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const session = await getServerSession(authOptions);
@@ -54,12 +56,39 @@ export default async function BookingsPage({
     ];
   }
 
+  const ORDER_BY: Record<string, Prisma.BookingRequestOrderByWithRelationInput[]> = {
+    recent: [{ createdAt: "desc" }],
+    oldest: [{ createdAt: "asc" }],
+    requestor: [{ requestorName: "asc" }, { createdAt: "desc" }],
+    destination: [{ destination: "asc" }, { createdAt: "desc" }],
+    status: [{ status: "asc" }, { createdAt: "desc" }]
+  };
+  const sortKey = params.sort && params.sort in ORDER_BY ? params.sort : "recent";
+  const perRaw = Number(params.per);
+  const perPage = PER_PAGE_OPTIONS.includes(perRaw) ? perRaw : 10;
+  const total = await prisma.bookingRequest.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const page = Math.min(Math.max(1, Number(params.page) || 1), totalPages);
+
   const booked = await prisma.bookingRequest.findMany({
     where,
-    orderBy: { createdAt: "desc" },
-    take: 300,
+    orderBy: ORDER_BY[sortKey],
+    skip: (page - 1) * perPage,
+    take: perPage,
     include: { vehicle: true }
   });
+
+  // Preserve active filters in pager links.
+  const pageHref = (p: number) => {
+    const q = new URLSearchParams();
+    if (params.status) q.set("status", params.status);
+    if (qRaw) q.set("q", qRaw);
+    if (sortKey !== "recent") q.set("sort", sortKey);
+    if (perPage !== 10) q.set("per", String(perPage));
+    if (p > 1) q.set("page", String(p));
+    const s = q.toString();
+    return s ? `/bookings?${s}` : "/bookings";
+  };
 
   return (
     <div className="px-4 py-6 sm:px-6">
@@ -68,7 +97,7 @@ export default async function BookingsPage({
           <div>
             <h1 className="text-xl font-semibold">{isAdmin ? "All Bookings" : "My Bookings"}</h1>
             <p className="mt-1 text-sm text-zinc-600">
-              {booked.length} booking{booked.length === 1 ? "" : "s"} · click a row to view details.
+              {total} booking{total === 1 ? "" : "s"} · click a row to view details.
             </p>
           </div>
           <Link
@@ -84,7 +113,7 @@ export default async function BookingsPage({
 
         <div className="mt-5 rounded-xl border bg-white p-5">
           <Suspense fallback={<div className="h-[76px] animate-pulse rounded-lg bg-zinc-100 sm:h-[52px]" />}>
-            <BookingsSummaryFilters defaultStatus="all" />
+            <BookingsSummaryFilters defaultStatus="all" withSort />
           </Suspense>
           <BookingsTable
             rows={booked.map(toBookingRow)}
@@ -92,6 +121,25 @@ export default async function BookingsPage({
             currentUserId={session.userId}
             isAdmin={isAdmin}
           />
+          {totalPages > 1 ? (
+            <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+              <span className="text-zinc-500">
+                Page {page} of {totalPages}
+              </span>
+              <div className="flex gap-2">
+                {page > 1 ? (
+                  <Link href={pageHref(page - 1)} className="rounded-lg border bg-white px-3 py-1.5 font-medium hover:bg-zinc-50">
+                    ← Previous
+                  </Link>
+                ) : null}
+                {page < totalPages ? (
+                  <Link href={pageHref(page + 1)} className="rounded-lg border bg-white px-3 py-1.5 font-medium hover:bg-zinc-50">
+                    Next →
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
