@@ -218,22 +218,69 @@ function RequestorNameField({
   );
 }
 
+/** Control number. Admin gets an inline input on the print view; on blur it
+    saves back to the booking (syncs to the bookings lists). Everyone else sees
+    the number as underlined text. Malformed input reverts without saving. */
+function ControlNoField({
+  value,
+  editable,
+  onSave
+}: {
+  value: string;
+  editable: boolean;
+  onSave: (controlNo: string) => Promise<void>;
+}) {
+  const [v, setV] = useState(value);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setV(value), [value]);
+
+  async function commit() {
+    const next = v.trim();
+    if (next === value.trim()) return;
+    if (!/^\d{4}-\d{2}-\d{4}$/.test(next)) {
+      setV(value);
+      return;
+    }
+    setBusy(true);
+    await onSave(next);
+    setBusy(false);
+  }
+
+  if (!editable) {
+    return <span className="font-medium underline underline-offset-2">{value}</span>;
+  }
+  return (
+    <input
+      value={v}
+      disabled={busy}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={commit}
+      placeholder="YYYY-MM-0000"
+      className="w-28 border-b border-zinc-900 bg-transparent text-center font-medium outline-none"
+    />
+  );
+}
+
 function FormCopy({
   req,
+  controlNo,
   requestorName,
   approver,
   noted,
   editable,
   onUpdated,
-  onRequestorSave
+  onRequestorSave,
+  onControlSave
 }: {
   req: PrintableBookingRequest;
+  controlNo: string;
   requestorName: string;
   approver: SignatoryInfo;
   noted: SignatoryInfo;
   editable: boolean;
   onUpdated: (role: SignatoryRole, signature: string | null) => void;
   onRequestorSave: (name: string) => Promise<void>;
+  onControlSave: (controlNo: string) => Promise<void>;
 }) {
   const tripDate = req.date.toISOString().slice(0, 10);
   const plateNo = req.vehicle?.plateNo ?? "";
@@ -251,7 +298,7 @@ function FormCopy({
       <div className="mt-2 flex justify-end">
         <div className="text-right">
           <div>
-            Control No.: <span className="font-medium underline underline-offset-2">{req.controlNo}</span>
+            Control No.: <ControlNoField value={controlNo} editable={editable} onSave={onControlSave} />
           </div>
           <div className="ml-auto mt-6 w-52 border-t border-zinc-900" />
           <div className="text-[10px]">Date</div>
@@ -333,6 +380,7 @@ export function BookingPrintDocument(props: {
   const [approver, setApprover] = useState<SignatoryInfo>(props.approver ?? DEFAULT_APPROVER);
   const [noted, setNoted] = useState<SignatoryInfo>(props.noted ?? DEFAULT_NOTED);
   const [requestorName, setRequestorName] = useState(req.requestorName);
+  const [controlNo, setControlNo] = useState(req.controlNo);
 
   function handleUpdated(role: SignatoryRole, signature: string | null) {
     if (role === "APPROVER") setApprover((prev) => ({ ...prev, signature }));
@@ -349,17 +397,35 @@ export function BookingPrintDocument(props: {
     else alert("Could not save requestor name.");
   }
 
+  async function saveControlNo(next: string) {
+    const res = await fetch(`/api/requests/${req.id}/control`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ controlNo: next })
+    });
+    const json = (await res.json().catch(() => null)) as { message?: string } | null;
+    if (res.ok) setControlNo(next);
+    else alert(json?.message ?? "Could not save control number.");
+  }
+
   return (
-    <div className="min-h-dvh bg-zinc-100 p-6 text-zinc-900">
+    <div className="print-root min-h-dvh bg-zinc-100 p-6 text-zinc-900">
       <style>{`
         /* Folio / long bond: 8.5in x 13in */
         @page { size: 8.5in 13in; margin: 0.5in; }
         @media print {
           .no-print { display: none !important; }
-          html, body { background: white !important; }
-          .sheet { box-shadow: none !important; border: none !important; padding: 0 !important; max-width: none !important; width: auto !important; }
-          .form-copy { break-inside: avoid; }
-          .cut-line { break-inside: avoid; }
+          html, body { background: white !important; height: 100% !important; min-height: 0 !important; }
+          /* Fill the printable page height and split it between the two copies
+             so the sheet occupies the whole page instead of the top half. */
+          .print-root { height: 100% !important; min-height: 0 !important; padding: 0 !important; }
+          .sheet {
+            box-shadow: none !important; border: none !important; padding: 0 !important;
+            max-width: none !important; width: auto !important;
+            height: 100% !important; display: flex !important; flex-direction: column !important;
+          }
+          .form-copy { flex: 1 1 0 !important; break-inside: avoid; }
+          .cut-line { flex: 0 0 auto; break-inside: avoid; }
         }
       `}</style>
 
@@ -378,7 +444,7 @@ export function BookingPrintDocument(props: {
       </div>
 
       <div className="sheet mx-auto w-[7.5in] max-w-full rounded-xl border bg-white p-[0.4in] shadow-sm">
-        <FormCopy req={req} requestorName={requestorName} approver={approver} noted={noted} editable={isAdmin} onUpdated={handleUpdated} onRequestorSave={saveRequestor} />
+        <FormCopy req={req} controlNo={controlNo} requestorName={requestorName} approver={approver} noted={noted} editable={isAdmin} onUpdated={handleUpdated} onRequestorSave={saveRequestor} onControlSave={saveControlNo} />
 
         <div className="cut-line my-5 flex items-center gap-2 text-[9px] text-zinc-400">
           <span className="h-px flex-1 border-t border-dashed border-zinc-300" />
@@ -386,7 +452,7 @@ export function BookingPrintDocument(props: {
           <span className="h-px flex-1 border-t border-dashed border-zinc-300" />
         </div>
 
-        <FormCopy req={req} requestorName={requestorName} approver={approver} noted={noted} editable={isAdmin} onUpdated={handleUpdated} onRequestorSave={saveRequestor} />
+        <FormCopy req={req} controlNo={controlNo} requestorName={requestorName} approver={approver} noted={noted} editable={isAdmin} onUpdated={handleUpdated} onRequestorSave={saveRequestor} onControlSave={saveControlNo} />
       </div>
     </div>
   );

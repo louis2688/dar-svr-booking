@@ -19,3 +19,4 @@ web-build
 
 # Prisma
 apps/web/prisma/dev.db
+.vercel

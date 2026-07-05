@@ -38,7 +38,7 @@ export default function RootLayout({
           <MobileOpeningSplash />
           <AppShell>{children}</AppShell>
         </Providers>
-        <footer className="border-t border-zinc-200/70 bg-white px-4 py-3 text-center text-xs text-zinc-500">
+        <footer className="border-t border-zinc-200/70 bg-white px-4 py-3 text-center text-xs text-zinc-500 print:hidden">
           Developed by Louis Madrigal
         </footer>
       </body>
