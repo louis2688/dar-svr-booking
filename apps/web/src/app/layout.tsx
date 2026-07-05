@@ -39,7 +39,7 @@ export default function RootLayout({
           <AppShell>{children}</AppShell>
         </Providers>
         <footer className="border-t border-zinc-200/70 bg-white px-4 py-3 text-center text-xs text-zinc-500">
-          Developed by Louis M
+          Developed by Louis Madrigal
         </footer>
       </body>
     </html>
