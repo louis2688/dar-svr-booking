@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { CreateRequestSchema } from "@svr/shared";
+import { BOOKING_TOO_SOON_MESSAGE, CreateRequestSchema, isBookingLeadTimeSatisfied } from "@svr/shared";
 import { Prisma } from "@prisma/client";
 
 import { requireUser, resolveSessionDbUser } from "@/server/authz";
@@ -37,6 +37,15 @@ export async function POST(req: Request) {
   // Only admins choose the vehicle. User submissions always start unassigned —
   // the admin picks the vehicle before approving. Enforced here regardless of payload.
   const isAdmin = resolvedUser.role === "ADMIN";
+
+  // Lead-time / no-past-dates applies to regular users only. Admins may
+  // backfill past bookings (recording trips that already happened).
+  if (!isAdmin && !isBookingLeadTimeSatisfied(input.date, input.startTime)) {
+    return NextResponse.json(
+      { error: "BAD_REQUEST", issues: [{ path: ["startTime"], message: BOOKING_TOO_SOON_MESSAGE }] },
+      { status: 400 }
+    );
+  }
   const vehicleId = isAdmin ? (input.vehicleId ?? null) : null;
 
   if (vehicleId) {
@@ -70,22 +79,49 @@ export async function POST(req: Request) {
   const controlMonthKey = manilaYearMonthKey(new Date());
   const controlDate = monthKeyToUTCDateFirstOfMonth(controlMonthKey);
 
+  // Admin backfill: honor the control number from the printed paper form.
+  const manualControlNo = isAdmin && input.controlNo ? input.controlNo : null;
+
   try {
     const created = await prisma.$transaction(
       async (tx) => {
-        const counter = await tx.controlCounter.upsert({
-          where: { controlDate },
-          create: { controlDate, lastSeq: 1 },
-          update: { lastSeq: { increment: 1 } }
-        });
+        let controlNo: string;
+        let rowControlDate: Date;
+        let rowSeq: number;
 
-        const controlNo = formatControlNo(controlMonthKey, counter.lastSeq);
+        if (manualControlNo) {
+          controlNo = manualControlNo;
+          rowControlDate = monthKeyToUTCDateFirstOfMonth(manualControlNo.slice(0, 7));
+          rowSeq = Number(manualControlNo.slice(8));
+          // Keep that month's counter at/above the manual seq so future
+          // auto-generated numbers can't collide with it.
+          const counter = await tx.controlCounter.upsert({
+            where: { controlDate: rowControlDate },
+            create: { controlDate: rowControlDate, lastSeq: rowSeq },
+            update: {}
+          });
+          if (counter.lastSeq < rowSeq) {
+            await tx.controlCounter.update({
+              where: { controlDate: rowControlDate },
+              data: { lastSeq: rowSeq }
+            });
+          }
+        } else {
+          const counter = await tx.controlCounter.upsert({
+            where: { controlDate },
+            create: { controlDate, lastSeq: 1 },
+            update: { lastSeq: { increment: 1 } }
+          });
+          controlNo = formatControlNo(controlMonthKey, counter.lastSeq);
+          rowControlDate = controlDate;
+          rowSeq = counter.lastSeq;
+        }
 
         const reqRow = await tx.bookingRequest.create({
           data: {
             controlNo,
-            controlDate,
-            monthlySeq: counter.lastSeq,
+            controlDate: rowControlDate,
+            monthlySeq: rowSeq,
             vehicleId,
             date: bookingDate,
             startTime: input.startTime,
@@ -110,6 +146,12 @@ export async function POST(req: Request) {
 
     return NextResponse.json(created, { status: 201 });
   } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json(
+        { error: "CONTROL_NO_TAKEN", message: "That control number is already used by another booking." },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       {
         error: "INTERNAL_ERROR",

@@ -34,6 +34,7 @@ export default async function UserPrintRequestPage(props: { params: Promise<{ id
       approver={approver}
       noted={noted}
       req={{
+        id: req.id,
         controlNo: req.controlNo,
         status: req.status,
         date: req.date,

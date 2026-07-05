@@ -54,6 +54,8 @@ export default function RequestPage() {
   const [purpose, setPurpose] = useState("");
   const [timeText, setTimeText] = useState("");
   const [requestorName, setRequestorName] = useState("");
+  // Admin backfill: control number copied from the printed paper form.
+  const [manualControlNo, setManualControlNo] = useState("");
   const [passengersText, setPassengersText] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -132,22 +134,23 @@ export default function RequestPage() {
   const minMonth = manilaTodayKey.slice(0, 7);
 
   useEffect(() => {
-    if (month < minMonth) setMonth(minMonth);
-  }, [month, minMonth]);
+    if (!isAdmin && month < minMonth) setMonth(minMonth);
+  }, [isAdmin, month, minMonth]);
 
   useEffect(() => {
-    if (date && date < manilaTodayKey) setDate("");
-  }, [date, manilaTodayKey]);
+    if (!isAdmin && date && date < manilaTodayKey) setDate("");
+  }, [isAdmin, date, manilaTodayKey]);
 
   const cal = useMemo(() => monthDays(month), [month]);
 
   const selectableTimes = useMemo(() => {
     if (!date) return [];
     const booked = availability[date]?.bookedTimes ?? [];
+    // Admins may backfill past bookings, so the lead-time rule is skipped.
     return BOOKING_TIME_OPTIONS.filter(
-      (t) => isBookingLeadTimeSatisfied(date, t, now) && !booked.includes(t)
+      (t) => (isAdmin || isBookingLeadTimeSatisfied(date, t, now)) && !booked.includes(t)
     );
-  }, [date, availability, now]);
+  }, [isAdmin, date, availability, now]);
 
   useEffect(() => {
     if (!date || selectableTimes.length === 0) return;
@@ -184,6 +187,7 @@ export default function RequestPage() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         ...(isAdmin && vehicleId ? { vehicleId } : {}),
+        ...(isAdmin && manualControlNo.trim() ? { controlNo: manualControlNo.trim() } : {}),
         date,
         startTime,
         destination,
@@ -211,6 +215,7 @@ export default function RequestPage() {
   function startAnotherRequest() {
     setResult(null);
     setError(null);
+    setManualControlNo("");
     setDate("");
     setStartTime(BOOKING_TIME_OPTIONS[0]);
     setDestination("");
@@ -327,7 +332,7 @@ export default function RequestPage() {
                 <input
                   className="mt-1 rounded-lg border px-3 py-2 text-sm"
                   type="month"
-                  min={minMonth}
+                  min={isAdmin ? undefined : minMonth}
                   value={month}
                   onChange={(e) => setMonth(e.target.value)}
                 />
@@ -344,7 +349,7 @@ export default function RequestPage() {
                 <div key={`pad-${i}`} />
               ))}
               {cal.days.map((d) => {
-                const isPastDay = d < manilaTodayKey;
+                const isPastDay = !isAdmin && d < manilaTodayKey;
                 const status = dayStatus(d);
                 const isSelected = d === date;
                 const bookedCount = availability[d]?.bookedTimes.length ?? 0;
@@ -388,7 +393,7 @@ export default function RequestPage() {
                 <input
                   className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
                   type="date"
-                  min={manilaTodayKey}
+                  min={isAdmin ? undefined : manilaTodayKey}
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   required
@@ -403,7 +408,7 @@ export default function RequestPage() {
                 >
                   {BOOKING_TIME_OPTIONS.map((opt) => {
                     const booked = date ? (availability[date]?.bookedTimes.includes(opt) ?? false) : false;
-                    const tooSoon = date ? !isBookingLeadTimeSatisfied(date, opt, now) : false;
+                    const tooSoon = date && !isAdmin ? !isBookingLeadTimeSatisfied(date, opt, now) : false;
                     const disabled = !date || tooSoon || booked;
                     return (
                       <option key={opt} value={opt} disabled={disabled}>
@@ -427,6 +432,21 @@ export default function RequestPage() {
 
           <div className="rounded-xl border bg-white p-4">
             <div className="grid gap-3">
+              {isAdmin ? (
+                <div>
+                  <label className="text-sm font-medium">Control No. (optional)</label>
+                  <input
+                    className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                    value={manualControlNo}
+                    onChange={(e) => setManualControlNo(e.target.value)}
+                    placeholder="e.g., 2026-06-0123 — leave blank to auto-generate"
+                    pattern="\d{4}-\d{2}-\d{4}"
+                  />
+                  <p className="mt-1 text-xs text-zinc-500">
+                    For backfilling past bookings: enter the control number from the printed form.
+                  </p>
+                </div>
+              ) : null}
               <div>
                 <label className="text-sm font-medium">Requestor name</label>
                 <input

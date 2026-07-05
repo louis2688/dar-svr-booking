@@ -94,6 +94,7 @@ export default function EditBookingPage() {
         // Always send vehicleId when admin (id or explicit null) so clearing the
         // dropdown actually unassigns the vehicle instead of being silently ignored.
         ...(isAdmin ? { vehicleId: vehicleId || null } : {}),
+        ...(isAdmin && controlNo.trim() ? { controlNo: controlNo.trim() } : {}),
         date,
         startTime,
         destination,
@@ -144,6 +145,21 @@ export default function EditBookingPage() {
         ) : (
           <div className="mt-6 rounded-xl border bg-white p-5">
             <div className="grid gap-3">
+              {isAdmin ? (
+                <div>
+                  <label className="text-sm font-medium">Control No.</label>
+                  <input
+                    className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                    value={controlNo}
+                    onChange={(e) => setControlNo(e.target.value)}
+                    pattern="\d{4}-\d{2}-\d{4}"
+                    placeholder="YYYY-MM-0000"
+                  />
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Change to match a printed form when backfilling (format YYYY-MM-0000). Must be unique.
+                  </p>
+                </div>
+              ) : null}
               {isAdmin ? (
                 <div>
                   <label className="text-sm font-medium">Vehicle</label>

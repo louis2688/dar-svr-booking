@@ -2,7 +2,7 @@
 
 import type { BookingStatus } from "@prisma/client";
 import { useSession } from "next-auth/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { formatBookingTimeLabel } from "@svr/shared";
 
@@ -29,6 +29,7 @@ const DEFAULT_APPROVER: SignatoryInfo = { name: "JOHN PAOLO M. LLANES", position
 const DEFAULT_NOTED: SignatoryInfo = { name: "ROSAVILLA M. DAVALOS, JD", position: "Chief Administrative Officer" };
 
 export type PrintableBookingRequest = {
+  id: string;
   controlNo: string;
   status: BookingStatus;
   date: Date;
@@ -60,37 +61,37 @@ function Line({ children }: { children?: React.ReactNode }) {
   );
 }
 
-/** Greedy word-wrap into exactly 2 lines (approx chars/line for this field's width). */
-function wrapTwoLines(text: string, charsPerLine = 62): [string, string] {
+/** Greedy word-wrap into as many lines as the text needs (approx chars/line
+    for this field's width). Always returns at least one line. */
+function wrapLines(text: string, charsPerLine = 62): string[] {
   const t = (text ?? "").trim();
-  if (t.length <= charsPerLine) return [t, ""];
-  const words = t.split(/\s+/);
-  let line1 = "";
-  let i = 0;
-  for (; i < words.length; i++) {
-    const next = line1 ? `${line1} ${words[i]}` : words[i];
-    if (next.length > charsPerLine && line1) break;
-    line1 = next;
+  if (!t) return [""];
+  const lines: string[] = [];
+  let cur = "";
+  for (const w of t.split(/\s+/)) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (next.length > charsPerLine && cur) {
+      lines.push(cur);
+      cur = w;
+    } else {
+      cur = next;
+    }
   }
-  const line2 = words.slice(i).join(" ");
-  return [line1, line2];
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [""];
 }
 
-/** Always two stacked underlined rows for Purpose — long text wraps onto the
-    second row; short text leaves it blank so there's always room to write a
-    continuation by hand on a printed copy. */
-function TwoLineField({ label, text }: { label: React.ReactNode; text: string }) {
-  const [line1, line2] = wrapTwoLines(text);
+/** Underlined rows for Purpose — one line normally, wrapping onto extra
+    underlined rows only when the text exceeds a row's width. */
+function MultiLineField({ label, text }: { label: React.ReactNode; text: string }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-end gap-2">
-        <div className="w-24 shrink-0 font-medium">{label}</div>
-        <Line>{line1}</Line>
-      </div>
-      <div className="flex items-end gap-2">
-        <div className="w-24 shrink-0" />
-        <Line>{line2}</Line>
-      </div>
+      {wrapLines(text).map((ln, i) => (
+        <div key={i} className="flex items-end gap-2">
+          <div className="w-24 shrink-0 font-medium">{i === 0 ? label : <span />}</div>
+          <Line>{ln}</Line>
+        </div>
+      ))}
     </div>
   );
 }
@@ -178,18 +179,61 @@ function SignatureBlock(props: {
   );
 }
 
+/** Requestor's printed name. Admin gets an inline input on the print view; on
+    blur it saves back to the booking (syncs to booking details). Everyone else
+    (and the printed page) sees plain text over the line — blank if unset. */
+function RequestorNameField({
+  value,
+  editable,
+  onSave
+}: {
+  value: string;
+  editable: boolean;
+  onSave: (name: string) => Promise<void>;
+}) {
+  const [v, setV] = useState(value);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setV(value), [value]);
+
+  async function commit() {
+    const next = v.trim();
+    if (!next || next === value.trim()) return;
+    setBusy(true);
+    await onSave(next);
+    setBusy(false);
+  }
+
+  if (!editable) {
+    return <div className="min-h-[1.25rem] text-sm font-semibold uppercase">{value}</div>;
+  }
+  return (
+    <input
+      value={v}
+      disabled={busy}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={commit}
+      placeholder="Requestor name"
+      className="w-full border-0 bg-transparent text-center text-sm font-semibold uppercase outline-none placeholder:normal-case placeholder:text-zinc-400"
+    />
+  );
+}
+
 function FormCopy({
   req,
+  requestorName,
   approver,
   noted,
   editable,
-  onUpdated
+  onUpdated,
+  onRequestorSave
 }: {
   req: PrintableBookingRequest;
+  requestorName: string;
   approver: SignatoryInfo;
   noted: SignatoryInfo;
   editable: boolean;
   onUpdated: (role: SignatoryRole, signature: string | null) => void;
+  onRequestorSave: (name: string) => Promise<void>;
 }) {
   const tripDate = req.date.toISOString().slice(0, 10);
   const plateNo = req.vehicle?.plateNo ?? "";
@@ -215,7 +259,7 @@ function FormCopy({
       </div>
 
       <div className="mt-1">
-        <div className="font-bold">{req.requestorName}</div>
+        <div className="font-bold uppercase">{requestorName}</div>
       </div>
 
       <div className="mt-2 flex flex-wrap items-end gap-x-1 leading-6">
@@ -235,7 +279,7 @@ function FormCopy({
           <div className="w-24 shrink-0 font-medium">DESTINATION:</div>
           <Line>{req.destination}</Line>
         </div>
-        <TwoLineField label={<>PURPOSE&nbsp;&nbsp;&nbsp;&nbsp;:</>} text={req.purpose} />
+        <MultiLineField label={<>PURPOSE&nbsp;&nbsp;&nbsp;&nbsp;:</>} text={req.purpose} />
         <div className="flex items-end gap-2">
           <div className="w-24 shrink-0 font-medium">TIME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</div>
           <div className="flex min-w-0 flex-1 items-end gap-2">
@@ -248,13 +292,10 @@ function FormCopy({
       </div>
 
       <div className="mt-6 flex justify-end">
-        <div className="text-center text-[10px]">
-          <div className="ml-auto w-56 border-t border-zinc-900" />
-          <div className="mt-0.5">
-            Signature of Employee Above
-            <br />
-            Printed Name
-          </div>
+        <div className="w-56 text-center text-[10px]">
+          <RequestorNameField value={requestorName} editable={editable} onSave={onRequestorSave} />
+          <div className="border-t border-zinc-900" />
+          <div className="mt-0.5">Requestor Name</div>
         </div>
       </div>
 
@@ -291,10 +332,21 @@ export function BookingPrintDocument(props: {
 
   const [approver, setApprover] = useState<SignatoryInfo>(props.approver ?? DEFAULT_APPROVER);
   const [noted, setNoted] = useState<SignatoryInfo>(props.noted ?? DEFAULT_NOTED);
+  const [requestorName, setRequestorName] = useState(req.requestorName);
 
   function handleUpdated(role: SignatoryRole, signature: string | null) {
     if (role === "APPROVER") setApprover((prev) => ({ ...prev, signature }));
     else setNoted((prev) => ({ ...prev, signature }));
+  }
+
+  async function saveRequestor(name: string) {
+    const res = await fetch(`/api/requests/${req.id}/requestor`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requestorName: name })
+    });
+    if (res.ok) setRequestorName(name);
+    else alert("Could not save requestor name.");
   }
 
   return (
@@ -326,7 +378,7 @@ export function BookingPrintDocument(props: {
       </div>
 
       <div className="sheet mx-auto w-[7.5in] max-w-full rounded-xl border bg-white p-[0.4in] shadow-sm">
-        <FormCopy req={req} approver={approver} noted={noted} editable={isAdmin} onUpdated={handleUpdated} />
+        <FormCopy req={req} requestorName={requestorName} approver={approver} noted={noted} editable={isAdmin} onUpdated={handleUpdated} onRequestorSave={saveRequestor} />
 
         <div className="cut-line my-5 flex items-center gap-2 text-[9px] text-zinc-400">
           <span className="h-px flex-1 border-t border-dashed border-zinc-300" />
@@ -334,7 +386,7 @@ export function BookingPrintDocument(props: {
           <span className="h-px flex-1 border-t border-dashed border-zinc-300" />
         </div>
 
-        <FormCopy req={req} approver={approver} noted={noted} editable={isAdmin} onUpdated={handleUpdated} />
+        <FormCopy req={req} requestorName={requestorName} approver={approver} noted={noted} editable={isAdmin} onUpdated={handleUpdated} onRequestorSave={saveRequestor} />
       </div>
     </div>
   );

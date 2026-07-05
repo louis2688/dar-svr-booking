@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { resolveSessionDbUser } from "@/server/authz";
 import { prisma } from "@/server/db";
-import { dateKeyToUTCDateMidnight } from "@/server/time";
+import { dateKeyToUTCDateMidnight, monthKeyToUTCDateFirstOfMonth } from "@/server/time";
 
 async function loadOwned(id: string, userId: string, isAdmin: boolean) {
   const reqRow = await prisma.bookingRequest.findUnique({
@@ -59,6 +59,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const input = parsed.data;
   const bookingDate = dateKeyToUTCDateMidnight(input.date);
 
+  // Admin may re-number a booking (e.g. correcting a backfilled past booking
+  // to match the printed paper form). Only applied when actually different.
+  const newControlNo = input.controlNo && input.controlNo !== existing.controlNo ? input.controlNo : null;
+
   // Vehicle stays admin-only, same rule as create; owners can never set/change it here.
   // Distinguish "omitted" (undefined -> keep existing) from an explicit `null`
   // (admin deliberately clearing the assignment) -- `??` alone can't tell those apart.
@@ -101,11 +105,37 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           }
         }
 
+        // Re-numbering: keep controlDate/monthlySeq consistent with the new
+        // number and keep that month's counter at/above the manual seq so
+        // future auto-generated numbers can't collide with it.
+        if (newControlNo) {
+          const rowControlDate = monthKeyToUTCDateFirstOfMonth(newControlNo.slice(0, 7));
+          const rowSeq = Number(newControlNo.slice(8));
+          const counter = await tx.controlCounter.upsert({
+            where: { controlDate: rowControlDate },
+            create: { controlDate: rowControlDate, lastSeq: rowSeq },
+            update: {}
+          });
+          if (counter.lastSeq < rowSeq) {
+            await tx.controlCounter.update({
+              where: { controlDate: rowControlDate },
+              data: { lastSeq: rowSeq }
+            });
+          }
+        }
+
         await tx.passenger.deleteMany({ where: { requestId: id } });
 
         return tx.bookingRequest.update({
           where: { id },
           data: {
+            ...(newControlNo
+              ? {
+                  controlNo: newControlNo,
+                  controlDate: monthKeyToUTCDateFirstOfMonth(newControlNo.slice(0, 7)),
+                  monthlySeq: Number(newControlNo.slice(8))
+                }
+              : {}),
             vehicleId,
             date: bookingDate,
             startTime: input.startTime,
@@ -128,6 +158,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       return NextResponse.json({ error: appCode, message: (error as Error).message }, { status: 409 });
     }
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        return NextResponse.json(
+          { error: "CONTROL_NO_TAKEN", message: "That control number is already used by another booking." },
+          { status: 409 }
+        );
+      }
       if (error.code === "P2025") {
         return NextResponse.json({ error: "NOT_FOUND", message: "Request not found." }, { status: 404 });
       }

@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { BOOKING_TOO_SOON_MESSAGE, isBookingLeadTimeSatisfied } from "./booking-lead";
 import { BookingTimeSchema } from "./booking-times";
 
 export const BookingStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED", "CANCELLED"]);
@@ -12,6 +11,12 @@ export const CreateRequestSchema = z
     // optional (omitted): keep existing on edit / no vehicle on create.
     // explicit null (edit only): admin clears an assigned vehicle.
     vehicleId: z.string().min(1).optional().nullable(),
+    /** Admin-only (backfilling past bookings): use the control number from the
+        printed paper form instead of auto-generating one. */
+    controlNo: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{4}$/, "Expected YYYY-MM-0000")
+      .optional(),
     date: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD"),
@@ -22,16 +27,9 @@ export const CreateRequestSchema = z
     requestorName: z.string().min(1).max(120),
     notedBy: z.string().max(120).optional(),
     passengers: z.array(z.string().min(1).max(120)).default([])
-  })
-  .superRefine((data, ctx) => {
-    if (!isBookingLeadTimeSatisfied(data.date, data.startTime)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: BOOKING_TOO_SOON_MESSAGE,
-        path: ["startTime"]
-      });
-    }
   });
+// Lead-time / no-past-dates rule is enforced in the create route for
+// non-admins only — admins may backfill past bookings.
 
 export type CreateRequestInput = z.infer<typeof CreateRequestSchema>;
 
