@@ -112,7 +112,18 @@ export async function POST(req: Request) {
             create: { controlDate, lastSeq: 1 },
             update: { lastSeq: { increment: 1 } }
           });
-          controlNo = formatControlNo(controlMonthKey, counter.lastSeq);
+          // Trailing letter cycles A..Z, advancing once per generated booking
+          // (global, not per-month). Stored in a sentinel ControlCounter row so
+          // no separate table/migration is needed. 1970-01 can't be a real
+          // booking month, so it never clashes with a month bucket.
+          const letterKey = new Date("1970-01-01T00:00:00.000Z");
+          const letterCounter = await tx.controlCounter.upsert({
+            where: { controlDate: letterKey },
+            create: { controlDate: letterKey, lastSeq: 1 },
+            update: { lastSeq: { increment: 1 } }
+          });
+          const letter = String.fromCharCode(65 + ((letterCounter.lastSeq - 1) % 26));
+          controlNo = formatControlNo(controlMonthKey, counter.lastSeq) + letter;
           rowControlDate = controlDate;
           rowSeq = counter.lastSeq;
         }
