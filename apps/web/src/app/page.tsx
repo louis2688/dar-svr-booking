@@ -88,8 +88,8 @@ export default async function Home({
   }
 
   const isAdmin = role === "ADMIN";
-  // Users see their own bookings; admins see everything.
-  const scope: Prisma.BookingRequestWhereInput = isAdmin ? {} : { requestedById: session?.userId };
+  // Everyone sees all bookings (read-only for users; admins get the actions).
+  const scope: Prisma.BookingRequestWhereInput = {};
 
   const statusFilter = parseSummaryStatus(params.status?.trim());
   const qRaw = params.q?.trim() ?? "";
@@ -174,7 +174,7 @@ export default async function Home({
             <div className="mt-6 rounded-xl border bg-white p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-lg font-semibold">{isAdmin ? "All Bookings" : "My Bookings"}</div>
+                  <div className="text-lg font-semibold">All Bookings</div>
                   <div className="mt-1 text-sm text-zinc-600">
                     Latest {booked.length} rows · Manila timestamps (24-hour).
                   </div>

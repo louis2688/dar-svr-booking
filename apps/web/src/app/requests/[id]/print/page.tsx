@@ -7,7 +7,6 @@ export default async function UserPrintRequestPage(props: { params: Promise<{ id
   if (!resolved.ok) {
     return <div className="p-6 text-sm">{resolved.message}</div>;
   }
-  const userId = resolved.userId;
 
   const { id } = await props.params;
   const [req, signatories] = await Promise.all([
@@ -22,9 +21,8 @@ export default async function UserPrintRequestPage(props: { params: Promise<{ id
     return <div className="p-6">Not found.</div>;
   }
 
-  if (req.requestedById !== userId && resolved.role !== "ADMIN") {
-    return <div className="p-6">Forbidden.</div>;
-  }
+  // Any signed-in user may view a booking (read-only); only admins can edit its
+  // inline fields (enforced in the print document + the write endpoints).
 
   const approver = signatories.find((s) => s.role === "APPROVER") ?? null;
   const noted = signatories.find((s) => s.role === "NOTED_BY") ?? null;

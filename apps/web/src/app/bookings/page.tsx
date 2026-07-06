@@ -39,7 +39,8 @@ export default async function BookingsPage({
   }
 
   const isAdmin = session.role === "ADMIN";
-  const scope: Prisma.BookingRequestWhereInput = isAdmin ? {} : { requestedById: session.userId };
+  // Everyone sees all bookings (read-only for users; admins get the actions).
+  const scope: Prisma.BookingRequestWhereInput = {};
 
   const statusFilter = parseStatus(params.status?.trim());
   const qRaw = params.q?.trim() ?? "";
@@ -95,7 +96,7 @@ export default async function BookingsPage({
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold">{isAdmin ? "All Bookings" : "My Bookings"}</h1>
+            <h1 className="text-xl font-semibold">All Bookings</h1>
             <p className="mt-1 text-sm text-zinc-600">
               {total} booking{total === 1 ? "" : "s"} · click a row to view details.
             </p>
