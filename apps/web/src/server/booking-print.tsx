@@ -45,6 +45,15 @@ export type PrintableBookingRequest = {
   notedBy?: string | null;
 };
 
+function formatManilaDate(d: Date) {
+  return d.toLocaleDateString("en-US", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
+}
+
 function splitTimeWindow(timeText: string | null | undefined, fallbackFrom: string) {
   const raw = (timeText ?? "").trim();
   if (raw) {
@@ -142,7 +151,7 @@ function SignatureBlock(props: {
   }
 
   return (
-    <div className="text-[10px] text-zinc-500">
+    <div className="text-[12px] text-zinc-500">
       {label}
       <div
         className={[
@@ -162,7 +171,7 @@ function SignatureBlock(props: {
             className="pointer-events-none absolute bottom-0 left-1/2 max-h-11 max-w-[180px] -translate-x-1/2 object-contain"
           />
         ) : editable ? (
-          <span className="no-print absolute inset-0 flex items-center justify-center text-center text-[9px] leading-tight text-emerald-700">
+          <span className="no-print absolute inset-0 flex items-center justify-center text-center text-[11px] leading-tight text-emerald-700">
             {busy ? "Uploading…" : "+ Click to upload signature"}
           </span>
         ) : null}
@@ -170,11 +179,11 @@ function SignatureBlock(props: {
           <input ref={fileRef} type="file" accept="image/*" className="no-print hidden" onChange={onPick} />
         ) : null}
       </div>
-      {err ? <div className="no-print text-[9px] text-red-600">{err}</div> : null}
-      <div className={`border-t pt-1 text-sm font-semibold text-zinc-900 ${props.uppercase ? "uppercase" : ""}`}>
+      {err ? <div className="no-print text-[11px] text-red-600">{err}</div> : null}
+      <div className={`border-t pt-1 text-center text-[16px] font-semibold text-zinc-900 ${props.uppercase ? "uppercase" : ""}`}>
         {person.name}
       </div>
-      <div className="text-[10px] font-normal text-zinc-500">{person.position}</div>
+      <div className="text-center text-[12px] font-normal text-zinc-500">{person.position}</div>
     </div>
   );
 }
@@ -204,7 +213,7 @@ function RequestorNameField({
   }
 
   if (!editable) {
-    return <div className="min-h-[1.25rem] text-sm font-semibold uppercase">{value}</div>;
+    return <div className="min-h-[1.25rem] text-[16px] font-semibold uppercase">{value}</div>;
   }
   return (
     <input
@@ -213,7 +222,7 @@ function RequestorNameField({
       onChange={(e) => setV(e.target.value)}
       onBlur={commit}
       placeholder="Requestor name"
-      className="w-full border-0 bg-transparent text-center text-sm font-semibold uppercase outline-none placeholder:normal-case placeholder:text-zinc-400"
+      className="w-full border-0 bg-transparent text-center text-[16px] font-semibold uppercase outline-none placeholder:normal-case placeholder:text-zinc-400"
     />
   );
 }
@@ -287,7 +296,7 @@ function FormCopy({
   const { from, to } = splitTimeWindow(req.timeText, formatBookingTimeLabel(req.startTime));
 
   return (
-    <div className="form-copy text-[11px] leading-tight text-zinc-900">
+    <div className="form-copy text-[13px] leading-tight text-zinc-900">
       <div className="text-center">
         <div>Department of Agrarian Reform</div>
         <div className="font-bold">PROVINCIAL AGRARIAN REFORM OFFICE</div>
@@ -300,13 +309,17 @@ function FormCopy({
           <div>
             Control No.: <ControlNoField value={controlNo} editable={editable} onSave={onControlSave} />
           </div>
-          <div className="ml-auto mt-6 w-52 border-t border-zinc-900" />
-          <div className="text-[10px]">Date</div>
+          <div className="ml-auto mt-6 w-40 border-b border-zinc-900 pb-0.5 text-center font-medium">
+            {formatManilaDate(req.createdAt)}
+          </div>
+          <div className="ml-auto w-40 text-center text-[12px]">Date</div>
         </div>
       </div>
 
       <div className="mt-1">
-        <div className="font-bold uppercase">{requestorName}</div>
+        {/* Requesting officer + position — fixed for now, made dynamic later. NOT the requestor. */}
+        <div className="font-bold uppercase">JOHN PAOLO M. LLANES</div>
+        <div className="text-[12px]">Administrative Officer IV</div>
       </div>
 
       <div className="mt-2 flex flex-wrap items-end gap-x-1 leading-6">
@@ -339,7 +352,7 @@ function FormCopy({
       </div>
 
       <div className="mt-6 flex justify-end">
-        <div className="w-56 text-center text-[10px]">
+        <div className="w-72 max-w-full text-center text-[12px]">
           <RequestorNameField value={requestorName} editable={editable} onSave={onRequestorSave} />
           <div className="border-t border-zinc-900" />
           <div className="mt-0.5">Requestor Name</div>
@@ -411,8 +424,9 @@ export function BookingPrintDocument(props: {
   return (
     <div className="print-root min-h-dvh bg-zinc-100 p-6 text-zinc-900">
       <style>{`
-        /* Folio / long bond: 8.5in x 13in */
-        @page { size: 8.5in 13in; margin: 0.5in; }
+        /* Folio / long bond: 8.5in x 13in. Tight margin so the two copies fill
+           the page with little wasted space. */
+        @page { size: 8.5in 13in; margin: 0.3in; }
         @media print {
           .no-print { display: none !important; }
           html, body { background: white !important; height: 100% !important; min-height: 0 !important; }
@@ -424,7 +438,13 @@ export function BookingPrintDocument(props: {
             max-width: none !important; width: auto !important;
             height: 100% !important; display: flex !important; flex-direction: column !important;
           }
-          .form-copy { flex: 1 1 0 !important; break-inside: avoid; }
+          /* Each copy fills its half and spreads its own content top-to-bottom
+             (header up top, signatories near the cut line) — no dead gap. */
+          .form-copy {
+            flex: 1 1 0 !important;
+            display: flex !important; flex-direction: column !important; justify-content: space-between !important;
+            break-inside: avoid;
+          }
           .cut-line { flex: 0 0 auto; break-inside: avoid; }
         }
       `}</style>
@@ -435,7 +455,7 @@ export function BookingPrintDocument(props: {
           {isAdmin ? " Click a signature box below to upload/replace it." : ""}
         </span>
         <button
-          className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+          className="rounded-lg bg-zinc-900 px-3 py-2 text-[16px] font-medium text-white hover:bg-zinc-800"
           onClick={() => window.print()}
           type="button"
         >
@@ -446,7 +466,7 @@ export function BookingPrintDocument(props: {
       <div className="sheet mx-auto w-[7.5in] max-w-full rounded-xl border bg-white p-[0.4in] shadow-sm">
         <FormCopy req={req} controlNo={controlNo} requestorName={requestorName} approver={approver} noted={noted} editable={isAdmin} onUpdated={handleUpdated} onRequestorSave={saveRequestor} onControlSave={saveControlNo} />
 
-        <div className="cut-line my-5 flex items-center gap-2 text-[9px] text-zinc-400">
+        <div className="cut-line my-5 flex items-center gap-2 text-[11px] text-zinc-400">
           <span className="h-px flex-1 border-t border-dashed border-zinc-300" />
           ✂ cut here
           <span className="h-px flex-1 border-t border-dashed border-zinc-300" />
