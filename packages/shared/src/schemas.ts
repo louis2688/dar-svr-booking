@@ -15,7 +15,7 @@ export const CreateRequestSchema = z
         printed paper form instead of auto-generating one. */
     controlNo: z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{4}$/, "Expected YYYY-MM-0000")
+      .regex(/^\d{4}-\d{2}-\d{4}[A-Za-z]?$/, "Expected YYYY-MM-0000 (optional trailing letter)")
       .optional(),
     date: z
       .string()

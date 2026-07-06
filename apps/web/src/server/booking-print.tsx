@@ -246,7 +246,7 @@ function ControlNoField({
   async function commit() {
     const next = v.trim();
     if (next === value.trim()) return;
-    if (!/^\d{4}-\d{2}-\d{4}$/.test(next)) {
+    if (!/^\d{4}-\d{2}-\d{4}[A-Za-z]?$/.test(next)) {
       setV(value);
       return;
     }

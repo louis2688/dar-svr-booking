@@ -92,7 +92,7 @@ export async function POST(req: Request) {
         if (manualControlNo) {
           controlNo = manualControlNo;
           rowControlDate = monthKeyToUTCDateFirstOfMonth(manualControlNo.slice(0, 7));
-          rowSeq = Number(manualControlNo.slice(8));
+          rowSeq = parseInt(manualControlNo.slice(8), 10);
           // Keep that month's counter at/above the manual seq so future
           // auto-generated numbers can't collide with it.
           const counter = await tx.controlCounter.upsert({

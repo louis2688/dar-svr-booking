@@ -18,12 +18,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const body = (await req.json().catch(() => null)) as { controlNo?: unknown } | null;
   const controlNo = typeof body?.controlNo === "string" ? body.controlNo.trim() : "";
-  if (!/^\d{4}-\d{2}-\d{4}$/.test(controlNo)) {
-    return NextResponse.json({ error: "BAD_REQUEST", message: "Expected control number YYYY-MM-0000." }, { status: 400 });
+  if (!/^\d{4}-\d{2}-\d{4}[A-Za-z]?$/.test(controlNo)) {
+    return NextResponse.json({ error: "BAD_REQUEST", message: "Expected control number YYYY-MM-0000 (optional trailing letter)." }, { status: 400 });
   }
 
   const rowControlDate = monthKeyToUTCDateFirstOfMonth(controlNo.slice(0, 7));
-  const rowSeq = Number(controlNo.slice(8));
+  // Numeric part only; a trailing letter (e.g. 0229A) is a variant marker.
+  const rowSeq = parseInt(controlNo.slice(8), 10);
 
   try {
     await prisma.$transaction(async (tx) => {

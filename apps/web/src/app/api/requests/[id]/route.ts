@@ -110,7 +110,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         // future auto-generated numbers can't collide with it.
         if (newControlNo) {
           const rowControlDate = monthKeyToUTCDateFirstOfMonth(newControlNo.slice(0, 7));
-          const rowSeq = Number(newControlNo.slice(8));
+          // Numeric part only; a trailing letter (e.g. 0229A) is a variant marker.
+          const rowSeq = parseInt(newControlNo.slice(8), 10);
           const counter = await tx.controlCounter.upsert({
             where: { controlDate: rowControlDate },
             create: { controlDate: rowControlDate, lastSeq: rowSeq },
@@ -133,7 +134,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
               ? {
                   controlNo: newControlNo,
                   controlDate: monthKeyToUTCDateFirstOfMonth(newControlNo.slice(0, 7)),
-                  monthlySeq: Number(newControlNo.slice(8))
+                  monthlySeq: parseInt(newControlNo.slice(8), 10)
                 }
               : {}),
             vehicleId,

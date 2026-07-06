@@ -132,7 +132,9 @@ model BookingRequest {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  @@unique([controlDate, monthlySeq])
+  // Not unique: lettered control-no variants (e.g. 0229 and 0229A) share the
+  // numeric monthlySeq. controlNo @unique is the real uniqueness guarantee.
+  @@index([controlDate, monthlySeq])
   @@index([vehicleId, date])
   @@index([vehicleId, date, startTime])
   @@index([status])

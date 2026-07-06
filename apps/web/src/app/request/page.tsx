@@ -440,7 +440,7 @@ export default function RequestPage() {
                     value={manualControlNo}
                     onChange={(e) => setManualControlNo(e.target.value)}
                     placeholder="e.g., 2026-06-0123 — leave blank to auto-generate"
-                    pattern="\d{4}-\d{2}-\d{4}"
+                    pattern="\d{4}-\d{2}-\d{4}[A-Za-z]?"
                   />
                   <p className="mt-1 text-xs text-zinc-500">
                     For backfilling past bookings: enter the control number from the printed form.

@@ -152,7 +152,7 @@ export default function EditBookingPage() {
                     className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
                     value={controlNo}
                     onChange={(e) => setControlNo(e.target.value)}
-                    pattern="\d{4}-\d{2}-\d{4}"
+                    pattern="\d{4}-\d{2}-\d{4}[A-Za-z]?"
                     placeholder="YYYY-MM-0000"
                   />
                   <p className="mt-1 text-xs text-zinc-500">
