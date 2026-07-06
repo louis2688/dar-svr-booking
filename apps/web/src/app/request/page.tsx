@@ -145,12 +145,11 @@ export default function RequestPage() {
 
   const selectableTimes = useMemo(() => {
     if (!date) return [];
-    const booked = availability[date]?.bookedTimes ?? [];
-    // Admins may backfill past bookings, so the lead-time rule is skipped.
-    return BOOKING_TIME_OPTIONS.filter(
-      (t) => (isAdmin || isBookingLeadTimeSatisfied(date, t, now)) && !booked.includes(t)
-    );
-  }, [isAdmin, date, availability, now]);
+    // Booked times stay selectable — a vehicle may hold multiple bookings at the
+    // same slot. The "(booked)" hint still shows, but it no longer blocks.
+    // Admins may backfill past bookings, so the lead-time rule is skipped too.
+    return BOOKING_TIME_OPTIONS.filter((t) => isAdmin || isBookingLeadTimeSatisfied(date, t, now));
+  }, [isAdmin, date, now]);
 
   useEffect(() => {
     if (!date || selectableTimes.length === 0) return;
@@ -409,7 +408,8 @@ export default function RequestPage() {
                   {BOOKING_TIME_OPTIONS.map((opt) => {
                     const booked = date ? (availability[date]?.bookedTimes.includes(opt) ?? false) : false;
                     const tooSoon = date && !isAdmin ? !isBookingLeadTimeSatisfied(date, opt, now) : false;
-                    const disabled = !date || tooSoon || booked;
+                    // "booked" is informational only now — same-slot rebooking is allowed.
+                    const disabled = !date || tooSoon;
                     return (
                       <option key={opt} value={opt} disabled={disabled}>
                         {formatBookingTimeLabel(opt)}

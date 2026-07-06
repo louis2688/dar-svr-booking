@@ -53,21 +53,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           });
         }
 
-        const clash = await tx.bookingRequest.findFirst({
-          where: {
-            id: { not: id },
-            vehicleId,
-            date: reqRow.date,
-            startTime: reqRow.startTime,
-            status: "APPROVED"
-          },
-          select: { id: true }
-        });
-        if (clash) {
-          throw Object.assign(new Error("Vehicle is already booked for this date and start time."), {
-            appCode: "START_TIME_ALREADY_BOOKED" as const
-          });
-        }
+        // Same-slot double-booking is intentionally allowed — a vehicle may hold
+        // multiple bookings at the same date/start time.
 
         await tx.bookingRequest.update({
           where: { id },
@@ -100,28 +87,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         { status: 422 }
       );
     }
-    if (appCode === "START_TIME_ALREADY_BOOKED") {
-      return NextResponse.json(
-        { error: appCode, message: (error as Error).message },
-        { status: 409 }
-      );
-    }
-
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2025") {
         return NextResponse.json(
           { error: "INVALID_STATUS", message: "Only PENDING requests can be approved." },
           { status: 422 }
-        );
-      }
-      // Backstop unique index fired: another approval won the same vehicle/date/startTime slot.
-      if (error.code === "P2002") {
-        return NextResponse.json(
-          {
-            error: "START_TIME_ALREADY_BOOKED",
-            message: "Vehicle is already booked for this date and start time."
-          },
-          { status: 409 }
         );
       }
       // Serializable transaction conflict: a concurrent approval raced this one.

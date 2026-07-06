@@ -85,25 +85,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   try {
     const updated = await prisma.$transaction(
       async (tx) => {
-        // Guard against double-booking: if this request is (or is being made) APPROVED
-        // and has a vehicle, no OTHER approved booking may hold the same slot.
-        if (existing.status === "APPROVED" && vehicleId) {
-          const clash = await tx.bookingRequest.findFirst({
-            where: {
-              id: { not: id },
-              vehicleId,
-              date: bookingDate,
-              startTime: input.startTime,
-              status: "APPROVED"
-            },
-            select: { id: true }
-          });
-          if (clash) {
-            throw Object.assign(new Error("Vehicle is already booked for this date and start time."), {
-              appCode: "START_TIME_ALREADY_BOOKED" as const
-            });
-          }
-        }
+        // Same-slot double-booking is intentionally allowed — no clash guard.
 
         // Re-numbering: keep controlDate/monthlySeq consistent with the new
         // number and keep that month's counter at/above the manual seq so
@@ -154,10 +136,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
     return NextResponse.json({ ok: true, item: updated });
   } catch (error: unknown) {
-    const appCode = (error as { appCode?: string })?.appCode;
-    if (appCode === "START_TIME_ALREADY_BOOKED") {
-      return NextResponse.json({ error: appCode, message: (error as Error).message }, { status: 409 });
-    }
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {
         return NextResponse.json(
