@@ -160,3 +160,16 @@ model Passenger {
   @@index([requestId])
 }
 
+
+/// User feedback to help improve the app. Read by admins in the Feedback inbox.
+model Feedback {
+  id        String   @id @default(cuid())
+  message   String
+  rating    Int? // optional 1-5
+  category  String? // "General" | "Bug" | "Idea" | "Other"
+  userId    String?
+  userEmail String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

@@ -55,6 +55,7 @@ const ICONS = {
   calendar: "M8 3v3M16 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z",
   history: "M12 8v4l3 2M3.05 11a9 9 0 1 1 .5 4M3 15v-4h4",
   help: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M9.6 9.4a2.4 2.4 0 1 1 3.3 2.2c-.8.4-1.4 1-1.4 2M12 17h.01",
+  feedback: "M21 11.5a8.4 8.4 0 0 1-8.5 8.4 8.9 8.9 0 0 1-3.9-.9L3 21l1.9-4.5A8.4 8.4 0 0 1 4 11.5 8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z",
   profile: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20a8 8 0 0 1 16 0"
 } as const;
 
@@ -73,9 +74,11 @@ function titleFor(pathname: string | null): string {
   if (pathname.startsWith("/admin/vehicles")) return "Vehicles";
   if (pathname.startsWith("/admin/signatories")) return "Signatories";
   if (pathname.startsWith("/admin/history")) return "Activity / History";
+  if (pathname.startsWith("/admin/feedback")) return "Feedback inbox";
   if (pathname.startsWith("/admin")) return "Approvals";
   if (pathname.startsWith("/bookings")) return "Bookings";
   if (pathname.startsWith("/calendar")) return "Booking Calendar";
+  if (pathname.startsWith("/feedback")) return "Send feedback";
   if (pathname.startsWith("/profile")) return "Profile";
   return "SVR Booking";
 }
@@ -121,7 +124,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       base.push({ href: "/admin/vehicles", label: "Vehicles", icon: ICONS.vehicles });
       base.push({ href: "/admin/signatories", label: "Signatories", icon: ICONS.profile });
       base.push({ href: "/admin/history", label: "History", icon: ICONS.history });
+      base.push({ href: "/admin/feedback", label: "Feedback Inbox", icon: ICONS.feedback });
     }
+    base.push({ href: "/feedback", label: "Feedback", icon: ICONS.feedback });
     base.push({ href: "/profile", label: "Profile", icon: ICONS.profile });
     base.push({ href: "/user-guide.html", label: "Help", icon: ICONS.help, external: true });
     return base;
