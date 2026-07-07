@@ -4,7 +4,7 @@ import { BOOKING_TIME_OPTIONS, formatBookingTimeLabel } from "@svr/shared";
 import { useEffect, useMemo, useState } from "react";
 
 type Vehicle = { id: string; name: string; plateNo?: string | null };
-type DayAvail = { date: string; bookedTimes: string[] };
+type Booking = { startTime: string; controlNo: string; vehicleName: string; plateNo: string | null };
 
 /** Day cells (YYYY-MM-DD) for a month grid, plus the weekday offset of day 1. */
 function monthDays(month: string) {
@@ -26,9 +26,9 @@ function thisMonthKey() {
 
 export default function CalendarPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [vehicleId, setVehicleId] = useState("");
+  const [vehicleId, setVehicleId] = useState(""); // "" = all vehicles
   const [month, setMonth] = useState(thisMonthKey());
-  const [avail, setAvail] = useState<Record<string, DayAvail>>({});
+  const [days, setDays] = useState<Record<string, Booking[]>>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -36,23 +36,21 @@ export default function CalendarPage() {
     (async () => {
       const res = await fetch("/api/vehicles");
       const json = (await res.json().catch(() => null)) as { items?: Vehicle[] } | null;
-      const items = json?.items ?? [];
-      setVehicles(items);
-      if (items[0]) setVehicleId(items[0].id);
+      setVehicles(json?.items ?? []);
     })();
   }, []);
 
   useEffect(() => {
-    if (!vehicleId) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const res = await fetch(`/api/availability?vehicleId=${vehicleId}&month=${month}`);
-      const json = (await res.json().catch(() => null)) as { days?: DayAvail[] } | null;
+      const qs = vehicleId ? `?month=${month}&vehicleId=${vehicleId}` : `?month=${month}`;
+      const res = await fetch(`/api/calendar${qs}`);
+      const json = (await res.json().catch(() => null)) as { days?: { date: string; bookings: Booking[] }[] } | null;
       if (cancelled) return;
-      const map: Record<string, DayAvail> = {};
-      for (const d of json?.days ?? []) map[d.date] = d;
-      setAvail(map);
+      const map: Record<string, Booking[]> = {};
+      for (const d of json?.days ?? []) map[d.date] = d.bookings;
+      setDays(map);
       setSelected(null);
       setLoading(false);
     })();
@@ -62,16 +60,16 @@ export default function CalendarPage() {
   }, [vehicleId, month]);
 
   const cal = useMemo(() => monthDays(month), [month]);
+  const perVehicle = vehicleId !== "";
   const total = BOOKING_TIME_OPTIONS.length;
-  const selectedBooked = selected ? (avail[selected]?.bookedTimes ?? []) : [];
+  const selectedBookings = selected ? (days[selected] ?? []) : [];
 
   return (
     <div className="px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-5xl">
         <h1 className="text-xl font-semibold">Booking Calendar</h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Booked time slots across all requests (approved). Read-only — pick a vehicle and month, then a day to see its
-          booked times.
+          Approved bookings for the month. Read-only — pick a vehicle (or all), then a day to see its booked times.
         </p>
 
         <div className="mt-5 rounded-xl border bg-white p-5">
@@ -83,6 +81,7 @@ export default function CalendarPage() {
                 value={vehicleId}
                 onChange={(e) => setVehicleId(e.target.value)}
               >
+                <option value="">All vehicles</option>
                 {vehicles.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name}
@@ -113,12 +112,12 @@ export default function CalendarPage() {
               <div key={`pad-${i}`} />
             ))}
             {cal.days.map((d) => {
-              const n = avail[d]?.bookedTimes.length ?? 0;
+              const n = days[d]?.length ?? 0;
               const isSelected = d === selected;
               const color =
                 n === 0
                   ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                  : n >= total
+                  : perVehicle && n >= total
                     ? "bg-red-50 border-red-200 text-red-900"
                     : "bg-amber-50 border-amber-200 text-amber-900";
               return (
@@ -134,7 +133,7 @@ export default function CalendarPage() {
                 >
                   {Number(d.slice(-2))}
                   <div className="mt-1 text-[10px] leading-tight text-zinc-600">
-                    {n}/{total}
+                    {perVehicle ? `${n}/${total}` : n > 0 ? `${n} booked` : "—"}
                   </div>
                 </button>
               );
@@ -144,21 +143,21 @@ export default function CalendarPage() {
           {selected ? (
             <div className="mt-5 rounded-xl border bg-zinc-50 p-4">
               <div className="text-sm font-semibold">{selected}</div>
-              {selectedBooked.length === 0 ? (
-                <p className="mt-1 text-sm text-zinc-500">No booked slots — all times open.</p>
+              {selectedBookings.length === 0 ? (
+                <p className="mt-1 text-sm text-zinc-500">No bookings — all times open.</p>
               ) : (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {[...selectedBooked]
-                    .sort()
-                    .map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900"
-                      >
-                        {formatBookingTimeLabel(t)} · booked
+                <ul className="mt-2 divide-y divide-zinc-200 text-sm">
+                  {selectedBookings.map((b, i) => (
+                    <li key={i} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+                      <span className="font-medium">{formatBookingTimeLabel(b.startTime)}</span>
+                      <span className="text-zinc-600">
+                        {b.vehicleName}
+                        {b.plateNo ? ` (${b.plateNo})` : ""}
                       </span>
-                    ))}
-                </div>
+                      <span className="text-xs text-emerald-800">{b.controlNo}</span>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           ) : null}
