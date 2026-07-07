@@ -54,6 +54,7 @@ const ICONS = {
   bookings: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
   calendar: "M8 3v3M16 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z",
   history: "M12 8v4l3 2M3.05 11a9 9 0 1 1 .5 4M3 15v-4h4",
+  help: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M9.6 9.4a2.4 2.4 0 1 1 3.3 2.2c-.8.4-1.4 1-1.4 2M12 17h.01",
   profile: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20a8 8 0 0 1 16 0"
 } as const;
 
@@ -109,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const items = useMemo(() => {
-    const base: { href: string; label: string; icon: string }[] = [
+    const base: { href: string; label: string; icon: string; external?: boolean }[] = [
       { href: "/", label: "Dashboard", icon: ICONS.dashboard },
       { href: "/bookings", label: "Bookings", icon: ICONS.bookings },
       { href: "/calendar", label: "Calendar", icon: ICONS.calendar },
@@ -122,6 +123,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       base.push({ href: "/admin/history", label: "History", icon: ICONS.history });
     }
     base.push({ href: "/profile", label: "Profile", icon: ICONS.profile });
+    base.push({ href: "/user-guide.html", label: "Help", icon: ICONS.help, external: true });
     return base;
   }, [role]);
 
@@ -174,6 +176,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={it.href}
               href={it.href}
+              target={it.external ? "_blank" : undefined}
+              rel={it.external ? "noopener noreferrer" : undefined}
               onClick={props.onNavigate}
               title={props.collapsed ? it.label : undefined}
               className={[
