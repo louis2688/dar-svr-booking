@@ -18,6 +18,9 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: MAX_SESSION_SECONDS
   },
+  // Use our own login page instead of NextAuth's unstyled default (which is what
+  // shows when a provider like Google is clicked before it's configured).
+  pages: { signIn: "/login" },
   jwt: {
     maxAge: MAX_SESSION_SECONDS
   },
